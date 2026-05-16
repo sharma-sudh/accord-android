@@ -1,3 +1,4 @@
+// NavGraph.kt
 package com.sudh.accord.navigation
 
 import androidx.compose.foundation.clickable
@@ -18,53 +19,106 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.sudh.accord.model.Task
 import com.sudh.accord.screens.*
 import com.sudh.accord.components.*
 
+// ── Fake data ────────────────────────────────────────────────────────────────
+
+private val fakeTasks = listOf(
+    Task(
+        id = 1,
+        title = "Morning workout",
+        value = 50.0,
+        isRecurring = true,
+        recurrenceType = "daily"
+    ),
+    Task(
+        id = 2,
+        title = "Read for 30 mins",
+        value = 30.0,
+        isRecurring = true,
+        recurrenceType = "daily"
+    ),
+    Task(
+        id = 3,
+        title = "No junk food today",
+        value = 20.0,
+        isRecurring = true,
+        recurrenceType = "daily"
+    ),
+    Task(
+        id = 4,
+        title = "Submit assignment",
+        value = 100.0,
+        isRecurring = false,
+        dueDate = "2025-05-20",
+        description = "DAA assignment, upload on vtop"
+    ),
+    Task(
+        id = 5,
+        title = "Call home",
+        value = 25.0,
+        isRecurring = false
+    ),
+)
+
+private const val FAKE_WALLET_BALANCE = 340.0
+private const val FAKE_AMOUNT_SPENT   = 160.0
+private const val FAKE_MONTHLY_BUDGET = 2000.0
+private const val FAKE_STREAK_DAYS    = 7
+val FAKE_TOTAL_EARNED    = 2450.0
+val FAKE_COMPLETION_RATE = 0.72f
+
+// ── NavGraph ─────────────────────────────────────────────────────────────────
+
 @Composable
-fun NavGraph(){
+fun NavGraph() {
     val navController = rememberNavController()
     val currentBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStack?.destination?.route
 
-    var isFabExpanded by remember { mutableStateOf(false) }
+    var isFabExpanded    by remember { mutableStateOf(false) }
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
 
-    val bottomNavRoute = listOf(Screen.HomeScreen.route, Screen.AnalyticsScreen.route)
+    // Task list state lives here — HomeScreen only reads + signals up via callback
+    var tasks by remember { mutableStateOf(fakeTasks) }
+
+    val onTaskComplete: (Task) -> Unit = { completed ->
+        tasks = tasks.filterNot { it.id == completed.id }
+    }
+
+    val onTaskDelete: (Task) -> Unit = { deleted ->
+        tasks = tasks.filterNot { it.id == deleted.id }
+    }
+
+    val bottomNavRoutes = listOf(Screen.HomeScreen.route, Screen.AnalyticsScreen.route)
 
     Scaffold(
         bottomBar = {
-            if (currentRoute in bottomNavRoute){
+            if (currentRoute in bottomNavRoutes) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if(isFabExpanded)
-                                Modifier.height(220.dp)
-                            else
-                                Modifier.wrapContentHeight()
+                            if (isFabExpanded) Modifier.height(220.dp)
+                            else Modifier.wrapContentHeight()
                         )
                 ) {
                     if (isFabExpanded) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 72.dp),  // clears the bar height
+                                .padding(bottom = 72.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Add Task option
                             ExtendedFloatingActionButton(
                                 onClick = {
                                     isFabExpanded = false
                                     isAddTaskSheetOpen = true
                                 },
-                                icon = {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = "Add Task"
-                                    )
-                                },
+                                icon = { Icon(Icons.Default.Add, contentDescription = "Add Task") },
                                 text = { Text("Add Task") }
                             )
                             ExtendedFloatingActionButton(
@@ -72,18 +126,12 @@ fun NavGraph(){
                                     isFabExpanded = false
                                     navController.navigate(Screen.QrScannerScreen.route)
                                 },
-                                icon = {
-                                    Icon(
-                                        Icons.Default.QrCodeScanner,
-                                        contentDescription = "QR Scanner"
-                                    )
-                                },
+                                icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "QR Scanner") },
                                 text = { Text("QR Scanner") }
                             )
                         }
                     }
 
-                    // The bar itself
                     Surface(
                         tonalElevation = 3.dp,
                         modifier = Modifier
@@ -120,7 +168,6 @@ fun NavGraph(){
                                 )
                             }
 
-                            // Center FAB — toggles isFabExpanded
                             FloatingActionButton(
                                 onClick = { isFabExpanded = !isFabExpanded },
                                 shape = CircleShape,
@@ -159,7 +206,6 @@ fun NavGraph(){
             }
         }
     ) { innerPadding ->
-        // Transparent full-screen overlay — dismisses FAB on outside tap
         if (isFabExpanded) {
             Box(
                 modifier = Modifier
@@ -167,33 +213,49 @@ fun NavGraph(){
                     .clickable { isFabExpanded = false }
             )
         }
+
         NavHost(
             navController = navController,
-            startDestination  = Screen.LoginScreen.route,
+            startDestination = Screen.LoginScreen.route,
             modifier = Modifier.padding(innerPadding)
-        ){
-            composable(Screen.LoginScreen.route){
+        ) {
+            composable(Screen.LoginScreen.route) {
                 LoginScreen(navController = navController)
             }
-            composable(Screen.OnboardingScreen.route){
+            composable(Screen.OnboardingScreen.route) {
                 OnboardingScreen(navController = navController)
             }
-            composable(Screen.HomeScreen.route){
-                HomeScreen()
+            composable(Screen.HomeScreen.route) {
+                HomeScreen(
+                    tasks          = tasks,
+                    walletBalance  = FAKE_WALLET_BALANCE,
+                    amountSpent    = FAKE_AMOUNT_SPENT,
+                    monthlyBudget  = FAKE_MONTHLY_BUDGET,
+                    streakDays     = FAKE_STREAK_DAYS,
+                    onTaskComplete = onTaskComplete,
+                    onTaskDelete   = onTaskDelete
+                )
             }
-            composable(Screen.AnalyticsScreen.route){
-                AnalyticsScreen()
+            composable(Screen.AnalyticsScreen.route) {
+                AnalyticsScreen(
+                    totalEarned    = FAKE_TOTAL_EARNED,
+                    totalSpent     = FAKE_AMOUNT_SPENT,
+                    completionRate = FAKE_COMPLETION_RATE,
+                    streakDays     = FAKE_STREAK_DAYS,
+                    tasks          = tasks
+                )
             }
-            composable(Screen.QrScannerScreen.route){
+            composable(Screen.QrScannerScreen.route) {
                 QrScannerScreen(navController = navController)
             }
-            composable(Screen.AmountInputScreen.route){
+            composable(Screen.AmountInputScreen.route) {
                 AmountInputScreen(navController = navController)
             }
-            composable(Screen.PaymentConfirmScreen.route){
+            composable(Screen.PaymentConfirmScreen.route) {
                 PaymentConfirmScreen(navController = navController)
             }
         }
+
         if (isAddTaskSheetOpen) {
             AddTaskSheet(onDismiss = { isAddTaskSheetOpen = false })
         }

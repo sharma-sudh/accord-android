@@ -14,6 +14,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -34,7 +37,11 @@ fun AddTaskSheet(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var taskName by remember { mutableStateOf("") }
-    var taskValue by remember { mutableStateOf("") } // the ₹ amount tied to the task
+    var taskValue by remember { mutableStateOf("") }
+    var isRecurring by remember { mutableStateOf(true) }
+    var recurrenceType by remember { mutableStateOf("daily") }
+    var dueDate by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -63,9 +70,52 @@ fun AddTaskSheet(onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Description — always shown, optional
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2
+            )
+
+            // Recurring vs One-off toggle
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                listOf("Recurring" to true, "One-off" to false).forEachIndexed { index, (label, value) ->
+                    SegmentedButton(
+                        selected = isRecurring == value,
+                        onClick = { isRecurring = value },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                        label = { Text(label) }
+                    )
+                }
+            }
+
+            // Conditional block
+            if (isRecurring) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf("Daily", "Weekly", "Monthly").forEachIndexed { index, label ->
+                        SegmentedButton(
+                            selected = recurrenceType == label.lowercase(),
+                            onClick = { recurrenceType = label.lowercase() },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            } else {
+                OutlinedTextField(
+                    value = dueDate,
+                    onValueChange = { dueDate = it },
+                    label = { Text("Due date") },
+                    placeholder = { Text("DD/MM/YYYY") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Button(
                 onClick = {
-                    // save task logic
                     scope.launch { sheetState.hide() }
                         .invokeOnCompletion { onDismiss() }
                 },
