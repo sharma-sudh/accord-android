@@ -29,10 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.sudh.accord.model.Task
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskSheet(onDismiss: () -> Unit) {
+fun AddTaskSheet(
+    onDismiss: () -> Unit,
+    onTaskAdded: (Task) -> Unit,
+    ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -116,6 +120,16 @@ fun AddTaskSheet(onDismiss: () -> Unit) {
 
             Button(
                 onClick = {
+                    val task = Task(
+                        id            = System.currentTimeMillis().toInt(),
+                        title         = taskName,
+                        value         = taskValue.toDoubleOrNull() ?: 0.0,
+                        isRecurring   = isRecurring,
+                        recurrenceType = if (isRecurring) recurrenceType else null,
+                        dueDate       = if (!isRecurring && dueDate.isNotBlank()) dueDate else null,
+                        description   = description.takeIf { it.isNotBlank() },
+                    )
+                    onTaskAdded(task)
                     scope.launch { sheetState.hide() }
                         .invokeOnCompletion { onDismiss() }
                 },
