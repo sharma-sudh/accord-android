@@ -28,24 +28,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import com.sudh.accord.model.Task
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskSheet(
     onDismiss: () -> Unit,
     onTaskAdded: (Task) -> Unit,
-    ) {
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    var taskName by remember { mutableStateOf("") }
-    var taskValue by remember { mutableStateOf("") }
-    var isRecurring by remember { mutableStateOf(true) }
+    var taskName       by remember { mutableStateOf("") }
+    var taskValue      by remember { mutableStateOf("") }
+    var isRecurring    by remember { mutableStateOf(true) }
     var recurrenceType by remember { mutableStateOf("daily") }
-    var dueDate by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var dueDate        by remember { mutableStateOf("") }
+    var description    by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -74,7 +75,6 @@ fun AddTaskSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Description — always shown, optional
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -88,22 +88,21 @@ fun AddTaskSheet(
                 listOf("Recurring" to true, "One-off" to false).forEachIndexed { index, (label, value) ->
                     SegmentedButton(
                         selected = isRecurring == value,
-                        onClick = { isRecurring = value },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
-                        label = { Text(label) }
+                        onClick  = { isRecurring = value },
+                        shape    = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                        label    = { Text(label) }
                     )
                 }
             }
 
-            // Conditional block
             if (isRecurring) {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("Daily", "Weekly", "Monthly").forEachIndexed { index, label ->
                         SegmentedButton(
                             selected = recurrenceType == label.lowercase(),
-                            onClick = { recurrenceType = label.lowercase() },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
-                            label = { Text(label) }
+                            onClick  = { recurrenceType = label.lowercase() },
+                            shape    = SegmentedButtonDefaults.itemShape(index = index, count = 3),
+                            label    = { Text(label) }
                         )
                     }
                 }
@@ -121,13 +120,13 @@ fun AddTaskSheet(
             Button(
                 onClick = {
                     val task = Task(
-                        id            = System.currentTimeMillis().toInt(),
-                        title         = taskName,
-                        value         = taskValue.toDoubleOrNull() ?: 0.0,
-                        isRecurring   = isRecurring,
-                        recurrenceType = if (isRecurring) recurrenceType else null,
-                        dueDate       = if (!isRecurring && dueDate.isNotBlank()) dueDate else null,
-                        description   = description.takeIf { it.isNotBlank() },
+                        id             = UUID.randomUUID().toString(),
+                        title          = taskName,
+                        value          = taskValue.toDoubleOrNull() ?: 0.0,
+                        isRecurring    = isRecurring,
+                        recurrenceType = if (isRecurring) recurrenceType.uppercase() else null,
+                        dueDate        = if (!isRecurring && dueDate.isNotBlank()) dueDate else null,
+                        description    = description.takeIf { it.isNotBlank() }
                     )
                     onTaskAdded(task)
                     scope.launch { sheetState.hide() }

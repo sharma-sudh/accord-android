@@ -10,23 +10,65 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.sudh.accord.BuildConfig
 import com.sudh.accord.navigation.Screen
+import com.sudh.accord.viewmodel.AuthEvent
+import com.sudh.accord.viewmodel.AuthUiState
+import com.sudh.accord.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
+
+
+
+private const val WEB_CLIENT_ID = BuildConfig.GOOGLE_CLIENT_ID
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(
+    navController: NavController,
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     var email           by remember { mutableStateOf("") }
     var password        by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     val teal = Color(0xFF0D9488)
+
+    // ── Collect events, then check session ────────────────────────────────────
+    // Collector is launched first so it's guaranteed to be registered before
+    // checkExistingSession() can emit NavigateToHome.
+    LaunchedEffect(Unit) {
+        launch {
+            authViewModel.events.collect { event ->
+                when (event) {
+                    is AuthEvent.NavigateToHome -> navController.navigate(Screen.HomeScreen.route) {
+                        popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                    }
+                    is AuthEvent.NavigateToOnboarding -> navController.navigate(Screen.OnboardingScreen.route) {
+                        popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                    }
+                }
+            }
+        }
+        authViewModel.checkExistingSession()
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -40,19 +82,13 @@ fun LoginScreen(navController: NavController) {
         ) {
             Spacer(modifier = Modifier.height(80.dp))
 
-            // ── Logo ─────────────────────────────────────────────────────────
+            // ── Logo ──────────────────────────────────────────────────────────
             Surface(
                 shape = RoundedCornerShape(22.dp),
                 color = teal,
                 modifier = Modifier.size(68.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    // TODO: swap Text("A") for your actual logo drawable
-                    // Image(
-                    //     painter = painterResource(R.drawable.ic_accord_logo),
-                    //     contentDescription = null,
-                    //     modifier = Modifier.size(36.dp)
-                    // )
                     Text(text = "A", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -82,10 +118,35 @@ fun LoginScreen(navController: NavController) {
             // ── Google Sign In ────────────────────────────────────────────────
             OutlinedButton(
                 onClick = {
-                    navController.navigate(Screen.OnboardingScreen.route) {
-                        popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                    coroutineScope.launch {
+                        val credentialManager = CredentialManager.create(context)
+
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setServerClientId(WEB_CLIENT_ID)
+                            .setFilterByAuthorizedAccounts(false) // show all accounts, not just previously used
+                            .build()
+
+                        val request = GetCredentialRequest.Builder()
+                            .addCredentialOption(googleIdOption)
+                            .build()
+
+                        try {
+                            val result = credentialManager.getCredential(context, request)
+                            val credential = result.credential
+
+                            if (credential is androidx.credentials.CustomCredential &&
+                                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                            ) {
+                                val googleIdTokenCredential =
+                                    GoogleIdTokenCredential.createFrom(credential.data)
+                                authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                            }
+                        } catch (e: GetCredentialException) {
+                            // user canceled or no accounts available — no-op is fine here
+                        }
                     }
                 },
+                enabled = uiState !is AuthUiState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -96,15 +157,27 @@ fun LoginScreen(navController: NavController) {
                     contentColor = MaterialTheme.colorScheme.onSurface
                 )
             ) {
-                // TODO: swap Text("G") for ic_google drawable once you add it
-                // Image(
-                //     painter = painterResource(R.drawable.ic_google),
-                //     contentDescription = null,
-                //     modifier = Modifier.size(18.dp)
-                // )
-                Text("G", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(text = "Continue with Google", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                if (uiState is AuthUiState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = teal
+                    )
+                } else {
+                    Text("G", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(text = "Continue with Google", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+
+            // ── Error message ─────────────────────────────────────────────────
+            if (uiState is AuthUiState.Error) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = (uiState as AuthUiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -153,7 +226,8 @@ fun LoginScreen(navController: NavController) {
                 label = { Text("Password") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -163,7 +237,6 @@ fun LoginScreen(navController: NavController) {
                 ),
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        // TODO: replace with eye / eye-off icons from your drawable set
                         Text(
                             text = if (passwordVisible) "hide" else "show",
                             fontSize = 11.sp,
@@ -184,7 +257,7 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ── Sign in (non-functional for now) ──────────────────────────────
+            // ── Sign in (email/password — not wired yet) ──────────────────────
             Button(
                 onClick = { /* TODO: wire up email/password auth */ },
                 enabled = false,
@@ -215,15 +288,12 @@ fun LoginScreen(navController: NavController) {
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
-
                 Text(
                     text = "Sign up",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = teal,
-                    modifier = Modifier.clickable {
-                        // TODO: Screen.SignUpScreen.route
-                    }
+                    modifier = Modifier.clickable { /* TODO: Screen.SignUpScreen.route */ }
                 )
             }
         }

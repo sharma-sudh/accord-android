@@ -1,4 +1,3 @@
-// HomeScreen.kt
 package com.sudh.accord.screens
 
 import androidx.compose.foundation.layout.*
@@ -24,23 +23,26 @@ fun HomeScreen(
     amountSpent: Double,
     monthlyBudget: Double,
     streakDays: Int,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
     onTaskComplete: (Task) -> Unit,
     onTaskDelete: (Task) -> Unit,
 ) {
-    var selectedTask by remember { mutableStateOf<Task?>(null) }
+    var selectedTask      by remember { mutableStateOf<Task?>(null) }
     var isDetailSheetOpen by remember { mutableStateOf(false) }
 
     val recurringTasks = remember(tasks) { tasks.filter { it.isRecurring } }
-    val oneOffTasks = remember(tasks) { tasks.filter { !it.isRecurring } }
+    val oneOffTasks    = remember(tasks) { tasks.filter { !it.isRecurring } }
 
     if (isDetailSheetOpen && selectedTask != null) {
         TaskDetailSheet(
-            task = selectedTask!!,
+            task      = selectedTask!!,
             onDismiss = {
                 isDetailSheetOpen = false
                 selectedTask = null
             },
-            onDelete = { task ->
+            onDelete  = { task ->
                 onTaskDelete(task)
                 isDetailSheetOpen = false
                 selectedTask = null
@@ -48,11 +50,46 @@ fun HomeScreen(
         )
     }
 
+    // ── Loading ───────────────────────────────────────────────────────────────
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // ── Load error ────────────────────────────────────────────────────────────
+    if (error != null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text  = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedButton(onClick = onRetry) {
+                    Text("Retry")
+                }
+            }
+        }
+        return
+    }
+
+    // ── Content ───────────────────────────────────────────────────────────────
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-        // ── Header ──────────────────────────────────────────────────────────
+        // ── Header ────────────────────────────────────────────────────────────
         item {
             Card(
                 modifier = Modifier
@@ -89,35 +126,35 @@ fun HomeScreen(
             }
         }
 
-        // ── Recurring tasks ──────────────────────────────────────────────────
+        // ── Recurring tasks ───────────────────────────────────────────────────
         items(
             items = recurringTasks,
-            key = { it.id }
+            key   = { it.id }
         ) { task ->
             TaskRow(
-                task = task,
+                task       = task,
                 onComplete = { onTaskComplete(task) },
-                onTap = {
+                onTap      = {
                     selectedTask = task
                     isDetailSheetOpen = true
                 }
             )
         }
 
-        // ── Divider ──────────────────────────────────────────────────────────
+        // ── Divider ───────────────────────────────────────────────────────────
         item {
             OneTimeDivider()
         }
 
-        // ── One-off tasks ────────────────────────────────────────────────────
+        // ── One-off tasks ─────────────────────────────────────────────────────
         items(
             items = oneOffTasks,
-            key = { it.id }
+            key   = { it.id }
         ) { task ->
             TaskRow(
-                task = task,
+                task       = task,
                 onComplete = { onTaskComplete(task) },
-                onTap = {
+                onTap      = {
                     selectedTask = task
                     isDetailSheetOpen = true
                 }
@@ -126,7 +163,7 @@ fun HomeScreen(
     }
 }
 
-// ── Small private composables ────────────────────────────────────────────────
+// ── Small private composables ─────────────────────────────────────────────────
 
 @Composable
 private fun StreakBadge(
@@ -134,14 +171,11 @@ private fun StreakBadge(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.widthIn(min = 56.dp),
+        modifier            = modifier.widthIn(min = 56.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(
-            text  = "🔥",
-            fontSize = 28.sp  // was headlineSmall, explicitly larger now
-        )
+        Text(text = "🔥", fontSize = 28.sp)
         Text(
             text       = "$streakDays",
             fontSize   = 20.sp,
@@ -159,16 +193,16 @@ private fun StreakBadge(
 @Composable
 private fun OneTimeDivider() {
     Row(
-        modifier = Modifier
+        modifier            = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment   = Alignment.CenterVertically
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))
         Text(
-            text = "one-time",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text     = "one-time",
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
         HorizontalDivider(modifier = Modifier.weight(1f))

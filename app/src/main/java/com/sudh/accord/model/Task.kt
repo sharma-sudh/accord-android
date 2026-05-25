@@ -1,7 +1,7 @@
 package com.sudh.accord.model
 
 data class Task(
-    val id: Int,
+    val id: String,
     val title: String,
     val value: Double,
     val isRecurring: Boolean,

@@ -24,25 +24,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.sudh.accord.components.AddTaskSheet
 import com.sudh.accord.model.Task
 import com.sudh.accord.navigation.Screen
-
+import com.sudh.accord.viewmodel.OnboardingEvent
+import com.sudh.accord.viewmodel.OnboardingUiState
+import com.sudh.accord.viewmodel.OnboardingViewModel
 @Composable
-fun OnboardingScreen(navController: NavController) {
+fun OnboardingScreen(
+    navController: NavController,
+    onboardingViewModel: OnboardingViewModel
+) {
+    val uiState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
 
     val teal = Color(0xFF0D9488)
 
-    var budget          by remember { mutableStateOf("") }
-    var budgetError     by remember { mutableStateOf(false) }
-    var pendingTask     by remember { mutableStateOf<Task?>(null) }
-    var showTaskSheet   by remember { mutableStateOf(false) }
+    var budget        by remember { mutableStateOf("") }
+    var budgetError   by remember { mutableStateOf(false) }
+    var pendingTask   by remember { mutableStateOf<Task?>(null) }
+    var showTaskSheet by remember { mutableStateOf(false) }
+
+    // ── Collect navigation events ─────────────────────────────────────────────
+    LaunchedEffect(Unit) {
+        onboardingViewModel.events.collect { event ->
+            when (event) {
+                is OnboardingEvent.NavigateToHome -> navController.navigate(Screen.HomeScreen.route) {
+                    popUpTo(Screen.LoginScreen.route) { inclusive = true }
+                }
+            }
+        }
+    }
 
     if (showTaskSheet) {
         AddTaskSheet(
-             onDismiss = { showTaskSheet = false },
-             onTaskAdded = { task -> pendingTask = task; showTaskSheet = false }
+            onDismiss   = { showTaskSheet = false },
+            onTaskAdded = { task -> pendingTask = task; showTaskSheet = false }
         )
     }
 
@@ -77,7 +96,7 @@ fun OnboardingScreen(navController: NavController) {
 
             Spacer(Modifier.height(40.dp))
 
-            // ── Monthly Budget (mandatory) ────────────────────────────────────
+            // ── Monthly Budget ────────────────────────────────────────────────
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Monthly Budget",
@@ -103,8 +122,8 @@ fun OnboardingScreen(navController: NavController) {
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = teal,
-                        focusedLabelColor = teal,
-                        cursorColor = teal
+                        focusedLabelColor  = teal,
+                        cursorColor        = teal
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -112,7 +131,7 @@ fun OnboardingScreen(navController: NavController) {
 
             Spacer(Modifier.height(32.dp))
 
-            // ── Optional task ─────────────────────────────────────────────────
+            // ── Optional first task ───────────────────────────────────────────
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -143,7 +162,6 @@ fun OnboardingScreen(navController: NavController) {
                     label = "task_slot"
                 ) { task ->
                     if (task == null) {
-                        // Dashed dropzone
                         val outlineColor = MaterialTheme.colorScheme.outline
                         Box(
                             modifier = Modifier
@@ -182,7 +200,6 @@ fun OnboardingScreen(navController: NavController) {
                             }
                         }
                     } else {
-                        // Task pill
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = teal.copy(alpha = 0.1f),
@@ -224,6 +241,16 @@ fun OnboardingScreen(navController: NavController) {
 
             Spacer(Modifier.height(48.dp))
 
+            // ── Error message ─────────────────────────────────────────────────
+            if (uiState is OnboardingUiState.Error) {
+                Text(
+                    text = (uiState as OnboardingUiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
+
             // ── Get Started ───────────────────────────────────────────────────
             Button(
                 onClick = {
@@ -231,22 +258,31 @@ fun OnboardingScreen(navController: NavController) {
                     if (parsed == null || parsed <= 0.0) {
                         budgetError = true
                     } else {
-                        // TODO: persist budget (and pendingTask if set) to your repo
-                        navController.navigate(Screen.HomeScreen.route) {
-                            popUpTo(Screen.LoginScreen.route) { inclusive = true }
-                        }
+                        onboardingViewModel.completeOnboarding(
+                            budget      = parsed,
+                            pendingTask = pendingTask
+                        )
                     }
                 },
+                enabled = uiState !is OnboardingUiState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = teal,
-                    contentColor = Color.White
+                    contentColor   = Color.White
                 )
             ) {
-                Text(text = "Get Started", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                if (uiState is OnboardingUiState.Loading) {
+                    CircularProgressIndicator(
+                        modifier    = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color       = Color.White
+                    )
+                } else {
+                    Text(text = "Get Started", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
             Spacer(Modifier.height(32.dp))
