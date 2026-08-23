@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
@@ -140,9 +141,15 @@ fun LoginScreen(
                                 val googleIdTokenCredential =
                                     GoogleIdTokenCredential.createFrom(credential.data)
                                 authViewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                            } else {
+                                Log.e("LoginScreen", "Unexpected credential type: ${credential.type}")
                             }
                         } catch (e: GetCredentialException) {
-                            // user canceled or no accounts available — no-op is fine here
+                            // TEMP: was a silent no-op — logging so we can see what's actually failing.
+                            Log.e("LoginScreen", "Google credential retrieval failed: ${e::class.simpleName} — ${e.message}", e)
+                        } catch (e: Exception) {
+                            // Covers GoogleIdTokenCredential.createFrom() parsing failures too.
+                            Log.e("LoginScreen", "Unexpected error during Google sign-in", e)
                         }
                     }
                 },
