@@ -8,5 +8,6 @@ data class TaskDto(
     val type: String,
     val isCompleted: Boolean,
     val dueDate: String?,
+    val lastCompletedAt: String? = null,
     val userId: String
 )

@@ -153,5 +153,6 @@ private fun TaskDto.toTask(): Task = Task(
     value          = value,
     isRecurring    = type != "ONE_OFF",
     recurrenceType = if (type != "ONE_OFF") type else null,
-    dueDate        = dueDate
+    dueDate        = dueDate,
+    lastCompletedAt = lastCompletedAt
 )

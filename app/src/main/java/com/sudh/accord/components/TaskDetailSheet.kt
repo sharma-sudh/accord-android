@@ -89,6 +89,13 @@ fun TaskDetailSheet(
                     text = "Repeats ${task.recurrenceType?.capitalize(Locale.current)}",
                     style = MaterialTheme.typography.bodyLarge
                 )
+                task.lastCompletedAt?.let {
+                    Text(
+                        text = "Last completed ${it.take(10)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 Text(
                     text = "Due ${task.dueDate}",

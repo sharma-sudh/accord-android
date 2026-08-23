@@ -7,5 +7,6 @@ data class Task(
     val isRecurring: Boolean,
     val recurrenceType: String? = null,
     val dueDate: String? = null,
-    val description: String? = null
+    val description: String? = null,
+    val lastCompletedAt: String? = null
 )
