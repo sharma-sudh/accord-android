@@ -20,11 +20,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.sudh.accord.auth.SessionManager
 import com.sudh.accord.screens.*
 import com.sudh.accord.components.*
 import com.sudh.accord.viewmodel.AnalyticsViewModel
 import com.sudh.accord.viewmodel.HomeViewModel
 import com.sudh.accord.viewmodel.OnboardingViewModel
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun NavGraph() {
@@ -41,6 +43,19 @@ fun NavGraph() {
 
     var isFabExpanded      by remember { mutableStateOf(false) }
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
+
+    // Forced logout: emitted by TokenAuthenticator (on an OkHttp background
+    // thread) when a refresh attempt fails because the refresh token itself
+    // is expired or revoked. Clear the back stack so the user can't navigate
+    // "back" into now-stale authenticated screens.
+    LaunchedEffect(Unit) {
+        SessionManager.sessionExpired.collect {
+            navController.navigate(Screen.LoginScreen.route) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     val bottomNavRoutes = listOf(Screen.HomeScreen.route, Screen.AnalyticsScreen.route)
 

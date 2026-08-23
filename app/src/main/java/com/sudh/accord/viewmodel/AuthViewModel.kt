@@ -47,7 +47,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             authRepository.googleSignIn(idToken)
                 .onSuccess { response ->
-                    tokenManager.saveToken(response.token)
+                    tokenManager.saveToken(response.accessToken)
+                    tokenManager.saveRefreshToken(response.refreshToken)
                     tokenManager.saveUserId(response.userId)
                     _uiState.value = AuthUiState.Idle
                     _events.emit(

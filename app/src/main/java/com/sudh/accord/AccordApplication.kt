@@ -2,6 +2,7 @@ package com.sudh.accord
 
 import android.app.Application
 import com.sudh.accord.auth.TokenManager
+import com.sudh.accord.network.RetrofitClient
 import com.sudh.accord.repository.AuthRepository
 import com.sudh.accord.repository.TaskRepository
 import com.sudh.accord.repository.UserRepository
@@ -16,6 +17,7 @@ class AccordApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         tokenManager = TokenManager(this)
+        RetrofitClient.init(tokenManager) // must run before any repository touches RetrofitClient.api
         taskRepository = TaskRepository()
         authRepository = AuthRepository()
         userRepository  = UserRepository()

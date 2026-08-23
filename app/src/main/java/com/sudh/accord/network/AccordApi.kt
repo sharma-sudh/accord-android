@@ -3,6 +3,7 @@ package com.sudh.accord.network
 import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.GoogleSignInRequest
+import com.sudh.accord.dto.RefreshRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.UpdateBudgetRequest
 import retrofit2.Response
@@ -21,6 +22,11 @@ interface AccordApi {
     @POST("auth/google")
     suspend fun googleSignIn(
         @Body body: GoogleSignInRequest
+    ): AuthResponse
+
+    @POST("auth/refresh")
+    suspend fun refresh(
+        @Body body: RefreshRequest
     ): AuthResponse
 
     // ── Tasks ─────────────────────────────────────────────────────────────────
