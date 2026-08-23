@@ -8,10 +8,12 @@ class TokenManager(context: Context) {
 
     private val appContext = context.applicationContext
 
+    @Suppress("DEPRECATION")
     private val masterKey = MasterKey.Builder(appContext)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
+    @Suppress("DEPRECATION")
     private val prefs = EncryptedSharedPreferences.create(
         appContext,
         FILE_NAME,
