@@ -274,11 +274,11 @@ fun SpendingCompletionChart(
                     rememberLineCartesianLayer(
                         lineProvider = LineCartesianLayer.LineProvider.series(
                             LineCartesianLayer.rememberLine(
-                                fill = LineCartesianLayer.LineFill.single(Fill(Color(0xFF6750A4))),
+                                fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.primary)),
                                 areaFill = null,
                             ),
                             LineCartesianLayer.rememberLine(
-                                fill = LineCartesianLayer.LineFill.single(Fill(Color(0xFF7D5260))),
+                                fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.tertiary)),
                                 areaFill = null,
                             ),
                         ),

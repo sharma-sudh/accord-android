@@ -40,7 +40,7 @@ fun OnboardingScreen(
     val uiState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
-    val teal = Color(0xFF0D9488)
+    val teal = MaterialTheme.colorScheme.primary
 
     var budget        by remember { mutableStateOf("") }
     var budgetError   by remember { mutableStateOf(false) }

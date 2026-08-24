@@ -3,6 +3,7 @@ package com.sudh.accord.navigation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
@@ -60,25 +61,28 @@ fun NavGraph() {
     val bottomNavRoutes = listOf(Screen.HomeScreen.route, Screen.AnalyticsScreen.route)
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (currentRoute in bottomNavRoutes) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(if (isFabExpanded) Modifier.height(220.dp) else Modifier.wrapContentHeight())
+                        .then(if (isFabExpanded) Modifier.height(240.dp) else Modifier.height(112.dp))
                 ) {
                     if (isFabExpanded) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 72.dp),
+                                .padding(bottom = 104.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             ExtendedFloatingActionButton(
                                 onClick = { isFabExpanded = false; isAddTaskSheetOpen = true },
                                 icon    = { Icon(Icons.Default.Add, contentDescription = "Add Task") },
-                                text    = { Text("Add Task") }
+                                text    = { Text("Add Task") },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
                             )
                             ExtendedFloatingActionButton(
                                 onClick = {
@@ -86,66 +90,80 @@ fun NavGraph() {
                                     navController.navigate(Screen.QrScannerScreen.route)
                                 },
                                 icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "QR Scanner") },
-                                text = { Text("QR Scanner") }
+                                text = { Text("QR Scanner") },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
                             )
                         }
                     }
 
+                    // Floating pill dock — inset from the edges instead of a
+                    // flush edge-to-edge bar, with the FAB raised above it.
                     Surface(
-                        tonalElevation = 3.dp,
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 28.dp)
+                            .padding(bottom = 24.dp)
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        shape           = RoundedCornerShape(32.dp),
+                        color           = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation  = 3.dp,
+                        shadowElevation = 10.dp,
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .padding(horizontal = 24.dp),
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            IconButton(onClick = {
-                                isFabExpanded = false
-                                navController.navigate(Screen.HomeScreen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true; restoreState = true
+                            DockNavItem(
+                                icon      = Icons.Default.Home,
+                                label     = "Home",
+                                selected  = currentRoute == Screen.HomeScreen.route,
+                                onClick   = {
+                                    isFabExpanded = false
+                                    navController.navigate(Screen.HomeScreen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true; restoreState = true
+                                    }
                                 }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = "Home",
-                                    tint = if (currentRoute == Screen.HomeScreen.route)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            )
 
-                            FloatingActionButton(
-                                onClick        = { isFabExpanded = !isFabExpanded },
-                                shape          = CircleShape,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Icon(
-                                    imageVector        = Icons.Default.Add,
-                                    contentDescription = if (isFabExpanded) "Collapse" else "Expand"
-                                )
-                            }
+                            Spacer(Modifier.width(64.dp)) // room for the raised FAB
 
-                            IconButton(onClick = {
-                                isFabExpanded = false
-                                navController.navigate(Screen.AnalyticsScreen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true; restoreState = true
+                            DockNavItem(
+                                icon      = Icons.Default.BarChart,
+                                label     = "Analytics",
+                                selected  = currentRoute == Screen.AnalyticsScreen.route,
+                                onClick   = {
+                                    isFabExpanded = false
+                                    navController.navigate(Screen.AnalyticsScreen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true; restoreState = true
+                                    }
                                 }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.BarChart,
-                                    contentDescription = "Analytics",
-                                    tint = if (currentRoute == Screen.AnalyticsScreen.route)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            )
                         }
+                    }
+
+                    // Raised FAB, floating above the dock's notch.
+                    FloatingActionButton(
+                        onClick        = { isFabExpanded = !isFabExpanded },
+                        shape          = CircleShape,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary,
+                        elevation      = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 40.dp)
+                            .size(60.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.Add,
+                            contentDescription = if (isFabExpanded) "Collapse" else "Expand"
+                        )
                     }
                 }
             }

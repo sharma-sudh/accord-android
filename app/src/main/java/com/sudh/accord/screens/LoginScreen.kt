@@ -50,7 +50,7 @@ fun LoginScreen(
     var password        by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val teal = Color(0xFF0D9488)
+    val teal = MaterialTheme.colorScheme.primary
 
     // ── Collect events, then check session ────────────────────────────────────
     // Collector is launched first so it's guaranteed to be registered before
