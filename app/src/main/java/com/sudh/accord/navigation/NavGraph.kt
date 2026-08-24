@@ -186,16 +186,18 @@ fun NavGraph() {
                     homeViewModel.loadData()
                 }
                 HomeScreen(
-                    tasks          = homeUiState.tasks,
-                    walletBalance  = homeUiState.walletBalance,
-                    amountSpent    = homeUiState.amountSpent,
-                    monthlyBudget  = homeUiState.monthlyBudget,
-                    streakDays     = homeUiState.streakDays,
-                    isLoading      = homeUiState.isLoading,
-                    error          = homeUiState.error,
-                    onRetry        = homeViewModel::loadData,
-                    onTaskComplete = homeViewModel::completeTask,
-                    onTaskDelete   = homeViewModel::deleteTask,
+                    tasks              = homeUiState.tasks,
+                    walletBalance      = homeUiState.walletBalance,
+                    amountSpent        = homeUiState.amountSpent,
+                    monthlyBudget      = homeUiState.monthlyBudget,
+                    streakDays         = homeUiState.streakDays,
+                    isLoading          = homeUiState.isLoading,
+                    error              = homeUiState.error,
+                    actionError        = homeUiState.actionError,
+                    onRetry            = homeViewModel::loadData,
+                    onTaskComplete     = homeViewModel::completeTask,
+                    onTaskDelete       = homeViewModel::deleteTask,
+                    onActionErrorShown = homeViewModel::clearActionError,
                 )
             }
 

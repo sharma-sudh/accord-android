@@ -105,7 +105,7 @@ fun AnalyticsScreen(
         }
 
         item {
-            if (isEmptyState) {
+            if (isEmptyState || series.isEmpty()) {
                 EmptyAnalyticsChart()
             } else {
                 SpendingCompletionChart(series = series)
@@ -260,6 +260,7 @@ fun SpendingCompletionChart(series: List<AnalyticsSeriesPoint>) {
     val modelProducer = remember { CartesianChartModelProducer() }
 
     LaunchedEffect(series) {
+        if (series.isEmpty()) return@LaunchedEffect
         withContext(Dispatchers.Default) {
             val spending  = series.map { it.spent }
             val completed = series.map { it.completedCount.toFloat() }

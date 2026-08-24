@@ -19,6 +19,9 @@ data class AnalyticsUiState(
     // True only when the user has zero transactions ever (all-time, not just
     // this range) — drives the blurred empty-state chart overlay.
     val isEmptyState: Boolean                  = false,
-    val isLoading: Boolean                     = false,
+    // True by default: the screen is always backed by a fresh load on
+    // composition, so the initial frame must show the spinner, not the
+    // (still-empty) default state.
+    val isLoading: Boolean                     = true,
     val error: String?                         = null,
 )

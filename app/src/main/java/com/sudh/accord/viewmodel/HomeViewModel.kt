@@ -87,7 +87,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         current.copy(
                             tasks = current.tasks + task,
                             walletBalance = current.walletBalance - task.value,
-                            error = e.message ?: "Failed to complete task"
+                            actionError = e.message ?: "Failed to complete task"
                         )
                     }
                 }
@@ -108,7 +108,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update { current ->
                         current.copy(
                             tasks = current.tasks + task,
-                            error = e.message ?: "Failed to delete task"
+                            actionError = e.message ?: "Failed to delete task"
                         )
                     }
                 }
@@ -134,13 +134,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(error = e.message ?: "Failed to create task") }
+                    _uiState.update { it.copy(actionError = e.message ?: "Failed to create task") }
                 }
         }
     }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearActionError() {
+        _uiState.update { it.copy(actionError = null) }
     }
 }
 

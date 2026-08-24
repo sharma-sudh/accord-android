@@ -9,5 +9,9 @@ data class HomeUiState(
     val monthlyBudget: Double = 0.0,
     val streakDays: Int       = 0,
     val isLoading: Boolean    = false,
-    val error: String?        = null
+    // Gates the full-screen error view — only ever set by the initial load.
+    val error: String?        = null,
+    // Transient result of addTask/completeTask/deleteTask — shown as a
+    // snackbar, never hides the already-loaded task list.
+    val actionError: String?  = null,
 )

@@ -36,12 +36,22 @@ fun HomeScreen(
     streakDays: Int,
     isLoading: Boolean,
     error: String?,
+    actionError: String?,
     onRetry: () -> Unit,
     onTaskComplete: (Task) -> Unit,
     onTaskDelete: (Task) -> Unit,
+    onActionErrorShown: () -> Unit,
 ) {
     var selectedTask      by remember { mutableStateOf<Task?>(null) }
     var isDetailSheetOpen by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(actionError) {
+        if (actionError != null) {
+            snackbarHostState.showSnackbar(actionError)
+            onActionErrorShown()
+        }
+    }
 
     val recurringTasks = remember(tasks) { tasks.filter { it.isRecurring } }
     val oneOffTasks    = remember(tasks) { tasks.filter { !it.isRecurring } }
@@ -90,47 +100,54 @@ fun HomeScreen(
     val isEmpty = tasks.isEmpty()
 
     // ── Content ───────────────────────────────────────────────────────────────
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(bottom = 100.dp)
-    ) {
-        // ── Hero wallet card ─────────────────────────────────────────────────
-        item {
-            WalletHeroCard(
-                walletBalance = walletBalance,
-                amountSpent   = amountSpent,
-                monthlyBudget = monthlyBudget,
-                streakDays    = streakDays
-            )
-        }
-
-        if (isEmpty) {
-            item { EmptyTasksState() }
-        } else {
-            if (recurringTasks.isNotEmpty()) {
-                item { SectionLabel(text = "Recurring") }
-                items(items = recurringTasks, key = { it.id }) { task ->
-                    TaskRow(
-                        task       = task,
-                        onComplete = { onTaskComplete(task) },
-                        onTap      = { selectedTask = task; isDetailSheetOpen = true }
-                    )
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            // ── Hero wallet card ─────────────────────────────────────────────────
+            item {
+                WalletHeroCard(
+                    walletBalance = walletBalance,
+                    amountSpent   = amountSpent,
+                    monthlyBudget = monthlyBudget,
+                    streakDays    = streakDays
+                )
             }
 
-            if (oneOffTasks.isNotEmpty()) {
-                item { SectionLabel(text = "One-time") }
-                items(items = oneOffTasks, key = { it.id }) { task ->
-                    TaskRow(
-                        task       = task,
-                        onComplete = { onTaskComplete(task) },
-                        onTap      = { selectedTask = task; isDetailSheetOpen = true }
-                    )
+            if (isEmpty) {
+                item { EmptyTasksState() }
+            } else {
+                if (recurringTasks.isNotEmpty()) {
+                    item { SectionLabel(text = "Recurring") }
+                    items(items = recurringTasks, key = { it.id }) { task ->
+                        TaskRow(
+                            task       = task,
+                            onComplete = { onTaskComplete(task) },
+                            onTap      = { selectedTask = task; isDetailSheetOpen = true }
+                        )
+                    }
+                }
+
+                if (oneOffTasks.isNotEmpty()) {
+                    item { SectionLabel(text = "One-time") }
+                    items(items = oneOffTasks, key = { it.id }) { task ->
+                        TaskRow(
+                            task       = task,
+                            onComplete = { onTaskComplete(task) },
+                            onTap      = { selectedTask = task; isDetailSheetOpen = true }
+                        )
+                    }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier  = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
