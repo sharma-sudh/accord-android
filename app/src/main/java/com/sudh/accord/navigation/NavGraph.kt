@@ -200,17 +200,25 @@ fun NavGraph() {
             }
 
             composable(Screen.AnalyticsScreen.route) {
+                LaunchedEffect(Unit) {
+                    analyticsViewModel.loadAnalytics()
+                }
                 AnalyticsScreen(
-                    totalEarned         = analyticsUiState.totalEarned,
-                    totalSpent          = analyticsUiState.totalSpent,
-                    completionRate      = analyticsUiState.completionRate,
-                    streakDays          = analyticsUiState.streakDays,
-                    tasks               = analyticsUiState.tasks,
-                    taskCompletionRates = analyticsUiState.taskCompletionRates,
-                    weekSpending        = analyticsUiState.weekSpending,
-                    weekCompletion      = analyticsUiState.weekCompletion,
-                    monthSpending       = analyticsUiState.monthSpending,
-                    monthCompletion     = analyticsUiState.monthCompletion,
+                    selectedRange  = analyticsUiState.selectedRange,
+                    totalEarned    = analyticsUiState.totalEarned,
+                    totalSpent     = analyticsUiState.totalSpent,
+                    completionRate = analyticsUiState.completionRate,
+                    streakDays     = analyticsUiState.streakDays,
+                    series         = analyticsUiState.series,
+                    taskBreakdown  = analyticsUiState.taskBreakdown,
+                    isEmptyState   = analyticsUiState.isEmptyState,
+                    isLoading      = analyticsUiState.isLoading,
+                    error          = analyticsUiState.error,
+                    onRangeSelect  = analyticsViewModel::selectRange,
+                    // loadAnalytics has a default parameter, and a bare method
+                    // reference doesn't apply defaults — needs a lambda to satisfy
+                    // the () -> Unit shape onRetry expects.
+                    onRetry        = { analyticsViewModel.loadAnalytics() },
                 )
             }
 

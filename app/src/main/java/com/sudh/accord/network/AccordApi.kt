@@ -1,5 +1,6 @@
 package com.sudh.accord.network
 
+import com.sudh.accord.dto.AnalyticsResponseDto
 import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.GoogleSignInRequest
@@ -14,6 +15,7 @@ import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface AccordApi {
 
@@ -66,4 +68,12 @@ interface AccordApi {
         @Header("Authorization") token: String,
         @Body request: UpdateBudgetRequest
     ): Response<Unit>
+
+    // ── Analytics ────────────────────────────────────────────────────────────
+
+    @GET("api/v1/analytics")
+    suspend fun getAnalytics(
+        @Header("Authorization") token: String,
+        @Query("range") range: String
+    ): AnalyticsResponseDto
 }

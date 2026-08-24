@@ -3,6 +3,7 @@ package com.sudh.accord
 import android.app.Application
 import com.sudh.accord.auth.TokenManager
 import com.sudh.accord.network.RetrofitClient
+import com.sudh.accord.repository.AnalyticsRepository
 import com.sudh.accord.repository.AuthRepository
 import com.sudh.accord.repository.TaskRepository
 import com.sudh.accord.repository.UserRepository
@@ -13,6 +14,7 @@ class AccordApplication : Application() {
     lateinit var taskRepository: TaskRepository
     lateinit var authRepository: AuthRepository
     lateinit var userRepository: UserRepository
+    lateinit var analyticsRepository: AnalyticsRepository
 
     override fun onCreate() {
         super.onCreate()
@@ -21,5 +23,6 @@ class AccordApplication : Application() {
         taskRepository = TaskRepository()
         authRepository = AuthRepository()
         userRepository  = UserRepository()
+        analyticsRepository = AnalyticsRepository()
     }
 }

@@ -2,49 +2,71 @@ package com.sudh.accord.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.sudh.accord.model.Task
+import androidx.lifecycle.viewModelScope
+import com.sudh.accord.AccordApplication
+import com.sudh.accord.model.AnalyticsSeriesPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class AnalyticsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _uiState = MutableStateFlow(
-        AnalyticsUiState(
-            totalEarned    = 2450.0,
-            totalSpent     = 160.0,
-            completionRate = 0.72f,
-            streakDays     = 7,
-            tasks = listOf(
-                Task(id = "1", title = "Morning workout",    value = 50.0,  isRecurring = true,  recurrenceType = "daily"),
-                Task(id = "2", title = "Read for 30 mins",   value = 30.0,  isRecurring = true,  recurrenceType = "daily"),
-                Task(id = "3", title = "No junk food today", value = 20.0,  isRecurring = true,  recurrenceType = "daily"),
-                Task(id = "4", title = "Submit assignment",   value = 100.0, isRecurring = false,
-                    dueDate = "2025-05-20", description = "DAA assignment, upload on vtop"),
-                Task(id = "5", title = "Call home",           value = 25.0,  isRecurring = false),
-            ),
-            taskCompletionRates = mapOf(
-                "Morning workout"    to 0.85f,
-                "Read for 30 mins"  to 0.60f,
-                "No junk food today" to 0.40f,
-                "Submit assignment" to 0.90f,
-                "Call home"         to 0.70f,
-            ),
-            weekSpending   = listOf(120f, 80f, 200f, 60f, 150f, 90f, 170f),
-            weekCompletion = listOf(60f, 75f, 50f, 90f, 70f, 85f, 65f),
-            monthSpending  = listOf(
-                800f, 650f, 1100f, 400f, 950f, 1200f, 700f,
-                600f, 900f, 1050f, 450f, 750f, 870f, 300f,
-                980f, 660f, 1150f, 820f, 500f, 730f, 1010f,
-                590f, 880f, 970f, 410f, 760f, 1080f, 630f, 490f, 840f,
-            ),
-            monthCompletion = listOf(
-                65f, 70f, 55f, 80f, 72f, 60f, 78f,
-                68f, 74f, 58f, 83f, 69f, 75f, 90f,
-                62f, 77f, 53f, 71f, 86f, 67f, 73f,
-                79f, 64f, 57f, 88f, 76f, 61f, 82f, 70f, 66f,
-            ),
-        )
-    )
+    private val app                 = getApplication<AccordApplication>()
+    private val analyticsRepository = app.analyticsRepository
+    private val tokenManager        = app.tokenManager
+
+    private val _uiState = MutableStateFlow(AnalyticsUiState())
     val uiState: StateFlow<AnalyticsUiState> = _uiState.asStateFlow()
+
+    fun loadAnalytics(range: String = _uiState.value.selectedRange) {
+        viewModelScope.launch {
+            val token = tokenManager.getToken()
+            if (token == null) {
+                _uiState.update { it.copy(error = "Session expired. Please sign in again.") }
+                return@launch
+            }
+
+            _uiState.update { it.copy(selectedRange = range, isLoading = true, error = null) }
+
+            analyticsRepository.getAnalytics("Bearer $token", range)
+                .onSuccess { dto ->
+                    _uiState.update {
+                        it.copy(
+                            totalEarned    = dto.totalEarned,
+                            totalSpent     = dto.totalSpent,
+                            completionRate = dto.completionRate.toFloat(),
+                            streakDays     = dto.streakDays,
+                            series         = dto.series.map { point ->
+                                AnalyticsSeriesPoint(
+                                    date           = point.date,
+                                    earned         = point.earned.toFloat(),
+                                    spent          = point.spent.toFloat(),
+                                    completedCount = point.completedCount.toInt(),
+                                )
+                            },
+                            taskBreakdown = dto.taskBreakdown,
+                            isEmptyState  = dto.isEmpty,
+                            isLoading     = false,
+                            error         = null,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load analytics") }
+                }
+        }
+    }
+
+    // No-op if the range hasn't actually changed — the toggle can fire while
+    // a load for the same range is still in flight.
+    fun selectRange(range: String) {
+        if (range == _uiState.value.selectedRange) return
+        loadAnalytics(range)
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
 }

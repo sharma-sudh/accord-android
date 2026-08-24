@@ -10,11 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.sudh.accord.model.Task
+import com.sudh.accord.model.AnalyticsSeriesPoint
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
@@ -30,19 +32,45 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun AnalyticsScreen(
+    selectedRange: String,
     totalEarned: Double,
     totalSpent: Double,
     completionRate: Float,
-    streakDays: Int,
-    tasks: List<Task>,
-    taskCompletionRates: Map<String, Float>,
-    weekSpending: List<Float>,
-    weekCompletion: List<Float>,
-    monthSpending: List<Float>,
-    monthCompletion: List<Float>,
+    streakDays: Int?,
+    series: List<AnalyticsSeriesPoint>,
+    taskBreakdown: Map<String, Long>,
+    isEmptyState: Boolean,
+    isLoading: Boolean,
+    error: String?,
+    onRangeSelect: (String) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedRange by remember { mutableStateOf("week") }
+    // ── Loading ───────────────────────────────────────────────────────────────
+    if (isLoading) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
+        return
+    }
+
+    // ── Load error ────────────────────────────────────────────────────────────
+    if (error != null) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text  = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedButton(onClick = onRetry) { Text("Retry") }
+            }
+        }
+        return
+    }
 
     LazyColumn(
         modifier = modifier
@@ -72,25 +100,20 @@ fun AnalyticsScreen(
         item {
             RangeToggle(
                 selected = selectedRange,
-                onSelect = { selectedRange = it },
+                onSelect = onRangeSelect,
             )
         }
 
         item {
-            SpendingCompletionChart(
-                selectedRange   = selectedRange,
-                weekSpending    = weekSpending,
-                weekCompletion  = weekCompletion,
-                monthSpending   = monthSpending,
-                monthCompletion = monthCompletion,
-            )
+            if (isEmptyState) {
+                EmptyAnalyticsChart()
+            } else {
+                SpendingCompletionChart(series = series)
+            }
         }
 
         item {
-            TaskBreakdown(
-                tasks               = tasks,
-                taskCompletionRates = taskCompletionRates,
-            )
+            TaskBreakdown(taskBreakdown = taskBreakdown, isEmptyState = isEmptyState)
         }
     }
 }
@@ -100,7 +123,7 @@ private fun StatCardsGrid(
     totalEarned: Double,
     totalSpent: Double,
     completionRate: Float,
-    streakDays: Int,
+    streakDays: Int?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -133,13 +156,17 @@ private fun StatCardsGrid(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                label = "Streak",
-                value = "${streakDays} days",
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // streakDays is null until 0.4.0's streak logic exists server-side —
+            // hide the card entirely rather than render a fake "0 days".
+            if (streakDays != null) {
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    label = "Streak",
+                    value = "${streakDays} days",
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -225,24 +252,21 @@ private fun RangeToggle(
     }
 }
 
+// Real chart, driven by the backend's already-bucketed, zero-filled series.
+// Second line is raw completed-task count per day, not a percentage — the
+// backend has no "total possible completions" concept to build a rate from.
 @Composable
-fun SpendingCompletionChart(
-    selectedRange: String,
-    weekSpending: List<Float>,
-    weekCompletion: List<Float>,
-    monthSpending: List<Float>,
-    monthCompletion: List<Float>,
-) {
+fun SpendingCompletionChart(series: List<AnalyticsSeriesPoint>) {
     val modelProducer = remember { CartesianChartModelProducer() }
 
-    LaunchedEffect(selectedRange) {
+    LaunchedEffect(series) {
         withContext(Dispatchers.Default) {
-            val spending   = if (selectedRange == "week") weekSpending   else monthSpending
-            val completion = if (selectedRange == "week") weekCompletion else monthCompletion
+            val spending  = series.map { it.spent }
+            val completed = series.map { it.completedCount.toFloat() }
             modelProducer.runTransaction {
                 lineSeries {
                     series(spending)
-                    series(completion)
+                    series(completed)
                 }
             }
         }
@@ -254,7 +278,7 @@ fun SpendingCompletionChart(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             LegendDot(color = MaterialTheme.colorScheme.primary,   label = "Spending (₹)")
-            LegendDot(color = MaterialTheme.colorScheme.tertiary,  label = "Completion %")
+            LegendDot(color = MaterialTheme.colorScheme.tertiary,  label = "Tasks completed")
         }
 
         Card(
@@ -292,6 +316,91 @@ fun SpendingCompletionChart(
     }
 }
 
+// New-user empty state (0.2.0 design doc, point 3): a blurred, non-interactive
+// dummy chart with an overlay message, instead of a real chart full of zeros.
+@Composable
+private fun EmptyAnalyticsChart() {
+    val dummySeries = remember {
+        listOf(40f, 65f, 30f, 80f, 55f, 70f, 45f)
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.blur(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                LegendDot(color = MaterialTheme.colorScheme.primary,   label = "Spending (₹)")
+                LegendDot(color = MaterialTheme.colorScheme.tertiary,  label = "Tasks completed")
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                ),
+                elevation = CardDefaults.cardElevation(0.dp),
+            ) {
+                val modelProducer = remember { CartesianChartModelProducer() }
+                LaunchedEffect(Unit) {
+                    withContext(Dispatchers.Default) {
+                        modelProducer.runTransaction {
+                            lineSeries {
+                                series(dummySeries)
+                                series(dummySeries.reversed())
+                            }
+                        }
+                    }
+                }
+                CartesianChartHost(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(12.dp),
+                    chart = rememberCartesianChart(
+                        rememberLineCartesianLayer(
+                            lineProvider = LineCartesianLayer.LineProvider.series(
+                                LineCartesianLayer.rememberLine(
+                                    fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.primary)),
+                                    areaFill = null,
+                                ),
+                                LineCartesianLayer.rememberLine(
+                                    fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.tertiary)),
+                                    areaFill = null,
+                                ),
+                            ),
+                        ),
+                        startAxis  = VerticalAxis.rememberStart(),
+                        bottomAxis = HorizontalAxis.rememberBottom(),
+                    ),
+                    modelProducer = modelProducer,
+                )
+            }
+        }
+
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+            ),
+            elevation = CardDefaults.cardElevation(4.dp),
+        ) {
+            Text(
+                text = "Complete a few tasks to unlock your analytics",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
 @Composable
 private fun LegendDot(color: Color, label: String) {
     Row(
@@ -312,10 +421,14 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
+// Replaces the old hardcoded taskCompletionRates 0-100% bars: the backend only
+// gives raw completion counts per task (no per-task denominator to build a
+// true rate from), so this ranks tasks by count with bars relative to the
+// task with the most completions in range.
 @Composable
 private fun TaskBreakdown(
-    tasks: List<Task>,
-    taskCompletionRates: Map<String, Float>,
+    taskBreakdown: Map<String, Long>,
+    isEmptyState: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -325,17 +438,23 @@ private fun TaskBreakdown(
             color = MaterialTheme.colorScheme.onBackground,
         )
 
-        if (tasks.isEmpty()) {
+        if (taskBreakdown.isEmpty()) {
             Text(
-                text = "No tasks yet — add tasks to see breakdown here.",
+                text = if (isEmptyState)
+                    "No tasks yet — add tasks to see breakdown here."
+                else
+                    "No completions in this range yet.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            tasks.forEach { task ->
+            val maxCount = taskBreakdown.values.max()
+            val sorted = taskBreakdown.entries.sortedByDescending { it.value }
+            sorted.forEach { (title, count) ->
                 TaskProgressRow(
-                    task           = task,
-                    completionRate = taskCompletionRates[task.title] ?: 0f,
+                    title = title,
+                    count = count,
+                    fraction = count.toFloat() / maxCount.toFloat(),
                 )
             }
         }
@@ -343,11 +462,11 @@ private fun TaskBreakdown(
 }
 
 @Composable
-private fun TaskProgressRow(task: Task, completionRate: Float) {
+private fun TaskProgressRow(title: String, count: Long, fraction: Float) {
     val animatedProgress by animateFloatAsState(
-        targetValue    = completionRate,
+        targetValue    = fraction,
         animationSpec  = tween(durationMillis = 600),
-        label          = "task_progress_${task.title}",
+        label          = "task_progress_${title}",
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -357,14 +476,14 @@ private fun TaskProgressRow(task: Task, completionRate: Float) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = task.title,
+                text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "${(completionRate * 100).toInt()}%",
+                text = "$count",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
