@@ -1,8 +1,5 @@
 package com.sudh.accord.screens
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,7 +18,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.core.net.toUri
+import com.sudh.accord.util.UpiPayment
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,36 +53,18 @@ fun AmountInputScreen(
         val amount  = parsedAmount
         if (!isInputValid || amount == null) return
 
-        val upiUri = "upi://pay".toUri().buildUpon()
-            .appendQueryParameter("pa", upiId)
-            .appendQueryParameter("pn", merchantName)
-            .appendQueryParameter("am", "%.2f".format(amount))
-            .appendQueryParameter("cu", "INR")
-            .build()
-        val upiIntent = Intent(Intent.ACTION_VIEW, upiUri)
-
-        // Package-visibility (API 30+) means this only resolves anything
-        // when the <queries> entry for the upi scheme is present in the
-        // manifest — see AndroidManifest.xml.
-        if (upiIntent.resolveActivity(context.packageManager) == null) {
-            launchError = "No UPI app found on this device"
+        val error = UpiPayment.launch(context, merchantName, upiId, amount)
+        if (error != null) {
+            launchError = error
             return
         }
 
         focusManager.clearFocus()
-        // Navigate first: by the time the user comes back from the UPI
-        // app (GPay/PhonePe/etc, chosen via the OS's own disambiguation
-        // dialog since we don't force a chooser), PaymentConfirmScreen is
-        // already the back-stack head.
+        // Navigate after a successful launch: by the time the user comes
+        // back from the UPI app (GPay/PhonePe/etc, chosen via the OS's own
+        // disambiguation dialog since we don't force a chooser),
+        // PaymentConfirmScreen is already the back-stack head.
         onConfirm(amount)
-
-        try {
-            context.startActivity(upiIntent)
-        } catch (e: ActivityNotFoundException) {
-            // Resolved a moment ago but the resolution can still race an
-            // uninstall/disable; nothing to recover here, the user is
-            // already on PaymentConfirmScreen.
-        }
     }
 
     Scaffold(

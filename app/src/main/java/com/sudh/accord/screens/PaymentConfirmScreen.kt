@@ -10,11 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sudh.accord.navigation.Screen
+import com.sudh.accord.util.UpiPayment
 
 private enum class ConfirmState { Idle, RetryPrompt }
 
@@ -29,7 +31,9 @@ fun PaymentConfirmScreen(
     submitError: String? = null,
     onConfirmPayment: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     var state by remember { mutableStateOf(ConfirmState.Idle) }
+    var retryLaunchError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -184,12 +188,33 @@ fun PaymentConfirmScreen(
                             )
 
                             Button(
-                                onClick  = { state = ConfirmState.Idle },
+                                onClick  = {
+                                    // Re-fire the same UPI deep link rather than just
+                                    // flipping state back to Idle — the user asked to
+                                    // retry the payment itself, not just the screen.
+                                    val error = UpiPayment.launch(context, merchantName, upiId, amount)
+                                    if (error != null) {
+                                        retryLaunchError = error
+                                    } else {
+                                        retryLaunchError = null
+                                        state = ConfirmState.Idle
+                                    }
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(52.dp)
                             ) {
                                 Text("Try payment again")
+                            }
+
+                            if (retryLaunchError != null) {
+                                Text(
+                                    text      = retryLaunchError.orEmpty(),
+                                    style     = MaterialTheme.typography.bodySmall,
+                                    color     = MaterialTheme.colorScheme.error,
+                                    textAlign = TextAlign.Center,
+                                    modifier  = Modifier.fillMaxWidth()
+                                )
                             }
 
                             TextButton(
