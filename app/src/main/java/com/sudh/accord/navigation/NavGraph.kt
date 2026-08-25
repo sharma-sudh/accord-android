@@ -27,6 +27,7 @@ import com.sudh.accord.components.*
 import com.sudh.accord.viewmodel.AnalyticsViewModel
 import com.sudh.accord.viewmodel.HomeViewModel
 import com.sudh.accord.viewmodel.OnboardingViewModel
+import com.sudh.accord.viewmodel.PaymentViewModel
 import kotlinx.coroutines.flow.collect
 
 @Composable
@@ -266,11 +267,25 @@ fun NavGraph() {
                 val upiId        = args?.getString(Screen.PaymentConfirmScreen.ARG_UPI_ID).orEmpty()
                 val amount       = args?.getString(Screen.PaymentConfirmScreen.ARG_AMOUNT)?.toDoubleOrNull() ?: 0.0
 
+                // Scoped to this back stack entry — payment state shouldn't
+                // outlive the confirmation screen itself.
+                val paymentViewModel: PaymentViewModel = viewModel()
+                val paymentUiState by paymentViewModel.uiState.collectAsStateWithLifecycle()
+
                 PaymentConfirmScreen(
-                    navController = navController,
-                    merchantName  = merchantName,
-                    upiId         = upiId,
-                    amount        = amount,
+                    navController    = navController,
+                    merchantName     = merchantName,
+                    upiId            = upiId,
+                    amount           = amount,
+                    isSubmitting     = paymentUiState.isSubmitting,
+                    submitError      = paymentUiState.error,
+                    onConfirmPayment = {
+                        paymentViewModel.confirmPayment(merchantName, upiId, amount) {
+                            navController.navigate(Screen.HomeScreen.route) {
+                                popUpTo(Screen.HomeScreen.route) { inclusive = false }
+                            }
+                        }
+                    }
                 )
             }
         }

@@ -24,7 +24,10 @@ fun PaymentConfirmScreen(
     navController: NavController,
     merchantName: String,
     upiId: String,
-    amount: Double
+    amount: Double,
+    isSubmitting: Boolean = false,
+    submitError: String? = null,
+    onConfirmPayment: () -> Unit = {}
 ) {
     var state by remember { mutableStateOf(ConfirmState.Idle) }
 
@@ -106,14 +109,14 @@ fun PaymentConfirmScreen(
                                 modifier            = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                // Yes — deduct from wallet and go Home
+                                // Yes — deduct via the backend, then go Home.
+                                // Waits for the mutation to land before navigating,
+                                // so a failed deduction never silently gets lost.
                                 Button(
                                     onClick  = {
-                                        // TODO: call ViewModel to deduct amount from Room wallet
-                                        navController.navigate(Screen.HomeScreen.route) {
-                                            popUpTo(Screen.HomeScreen.route) { inclusive = false }
-                                        }
+                                        onConfirmPayment()
                                     },
+                                    enabled  = !isSubmitting,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(52.dp),
@@ -121,18 +124,27 @@ fun PaymentConfirmScreen(
                                         containerColor = MaterialTheme.colorScheme.primary
                                     )
                                 ) {
-                                    Icon(
-                                        imageVector  = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        modifier     = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Yes, paid")
+                                    if (isSubmitting) {
+                                        CircularProgressIndicator(
+                                            modifier    = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color       = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector  = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            modifier     = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Yes, paid")
+                                    }
                                 }
 
                                 // No — surface retry prompt
                                 OutlinedButton(
                                     onClick  = { state = ConfirmState.RetryPrompt },
+                                    enabled  = !isSubmitting,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(52.dp)
@@ -145,6 +157,16 @@ fun PaymentConfirmScreen(
                                     Spacer(Modifier.width(6.dp))
                                     Text("No")
                                 }
+                            }
+
+                            if (submitError != null) {
+                                Text(
+                                    text      = submitError,
+                                    style     = MaterialTheme.typography.bodySmall,
+                                    color     = MaterialTheme.colorScheme.error,
+                                    textAlign = TextAlign.Center,
+                                    modifier  = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }

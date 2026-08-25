@@ -5,6 +5,7 @@ import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.GoogleSignInRequest
 import com.sudh.accord.dto.RefreshRequest
+import com.sudh.accord.dto.SpendRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.UpdateBudgetRequest
 import retrofit2.Response
@@ -61,6 +62,12 @@ interface AccordApi {
     @GET("api/v1/transactions/balance")
     suspend fun getBalance(
         @Header("Authorization") token: String
+    ): Double
+
+    @POST("api/v1/transactions/spend")
+    suspend fun spend(
+        @Header("Authorization") token: String,
+        @Body request: SpendRequest
     ): Double
 
     @PATCH("api/v1/users")
