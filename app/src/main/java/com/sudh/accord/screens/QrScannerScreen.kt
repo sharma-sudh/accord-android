@@ -1,5 +1,13 @@
 package com.sudh.accord.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,10 +25,27 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ExperimentalGetImage
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.delay
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import androidx.core.net.toUri
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +53,38 @@ fun QrScannerScreen(
     navController: NavController,
     onQrDecoded: (merchantName: String, upiId: String) -> Unit
 ) {
+    val context = LocalContext.current
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted -> hasCameraPermission = granted }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    var scanError by remember { mutableStateOf<String?>(null) }
+
+    // Errors are transient — clear automatically so the scanner recovers
+    // on its own once the user moves off an invalid code.
+    LaunchedEffect(scanError) {
+        if (scanError != null) {
+            delay(2000.milliseconds)
+            scanError = null
+        }
+    }
+
     val scanLineY by rememberInfiniteTransition(label = "scan").animateFloat(
         initialValue   = 0f,
         targetValue    = 1f,
@@ -65,7 +122,6 @@ fun QrScannerScreen(
                 textAlign = TextAlign.Center
             )
 
-            // Viewfinder mockup
             val cornerColor = MaterialTheme.colorScheme.primary
             val scanColor   = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
 
@@ -89,43 +145,183 @@ fun QrScannerScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Corner bracket decorations
-                CornerBrackets(color = cornerColor, size = 260.dp)
+                if (hasCameraPermission) {
+                    CameraPreview(
+                        onQrDecoded = onQrDecoded,
+                        onInvalidQr = { scanError = it },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                } else {
+                    Icon(
+                        imageVector  = Icons.Default.QrCodeScanner,
+                        contentDescription = null,
+                        modifier     = Modifier.size(64.dp),
+                        tint         = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                }
 
-                Icon(
-                    imageVector  = Icons.Default.QrCodeScanner,
-                    contentDescription = null,
-                    modifier     = Modifier.size(64.dp),
-                    tint         = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
+                // Corner bracket decorations sit above the preview
+                CornerBrackets(color = cornerColor, size = 260.dp)
             }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            if (!hasCameraPermission) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text  = "Camera permission is needed to scan QR codes",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Button(
+                        onClick  = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant Camera Permission")
+                    }
+                }
+            } else if (scanError != null) {
                 Text(
-                    text  = "Camera permission required in production",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    text      = scanError!!,
+                    style     = MaterialTheme.typography.labelMedium,
+                    color     = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
                 )
-
-                Button(
-                    onClick = { onQrDecoded("Swiggy", "swiggy@upi") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Simulate Scan — Swiggy")
-                }
-
-                OutlinedButton(
-                    onClick  = { onQrDecoded("Campus Cafe", "campuscafe@okaxis") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Simulate Scan — Campus Cafe")
-                }
             }
         }
     }
+}
+
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
+@Composable
+private fun CameraPreview(
+    onQrDecoded: (merchantName: String, upiId: String) -> Unit,
+    onInvalidQr: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Guards against firing onQrDecoded more than once per screen visit,
+    // since ImageAnalysis will keep delivering frames while we navigate away.
+    val hasDecoded = remember { AtomicBoolean(false) }
+    // Guards against overlapping ML Kit calls — frames arrive faster than
+    // a single decode round-trip, so only one is in flight at a time.
+    val isAnalyzing = remember { AtomicBoolean(false) }
+    // Dedupes the error callback so holding an invalid QR in frame doesn't
+    // spam onInvalidQr (and Compose recomposition) on every analyzed frame.
+    val lastInvalidValue = remember { AtomicReference<String?>(null) }
+    val analysisExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
+    val barcodeScanner = remember { BarcodeScanning.getClient() }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            analysisExecutor.shutdown()
+            barcodeScanner.close()
+        }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            val previewView = PreviewView(ctx)
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+
+                val preview = Preview.Builder().build().also {
+                    it.surfaceProvider = previewView.surfaceProvider
+                }
+
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+                    .also { analysis ->
+                        analysis.setAnalyzer(analysisExecutor) { imageProxy ->
+                            val mediaImage = imageProxy.image
+                            if (mediaImage == null || hasDecoded.get() ||
+                                !isAnalyzing.compareAndSet(false, true)
+                            ) {
+                                imageProxy.close()
+                                return@setAnalyzer
+                            }
+
+                            val inputImage = InputImage.fromMediaImage(
+                                mediaImage,
+                                imageProxy.imageInfo.rotationDegrees
+                            )
+
+                            barcodeScanner.process(inputImage)
+                                .addOnSuccessListener { barcodes ->
+                                    val rawValue = barcodes.firstOrNull()?.rawValue
+                                        ?: return@addOnSuccessListener
+
+                                    val parsed = parseUpiQr(rawValue)
+                                    if (parsed != null) {
+                                        if (hasDecoded.compareAndSet(false, true)) {
+                                            val (merchantName, upiId) = parsed
+                                            onQrDecoded(merchantName, upiId)
+                                        }
+                                    } else if (lastInvalidValue.getAndSet(rawValue) != rawValue) {
+                                        onInvalidQr("Not a valid UPI QR code — try again")
+                                    }
+                                }
+                                .addOnCompleteListener {
+                                    isAnalyzing.set(false)
+                                    imageProxy.close()
+                                }
+                        }
+                    }
+
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        imageAnalysis
+                    )
+                } catch (_: Exception) {
+                    // Camera binding can fail if the lifecycle is already
+                    // destroyed by the time this listener runs; nothing to
+                    // recover from here, the screen will just show no preview.
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+
+            previewView
+        }
+    )
+}
+
+/**
+ * Parses a UPI deep link — "upi://pay?pa=<vpa>&pn=<name>&am=<amount>&cu=INR..." —
+ * into a (merchantName, upiId) pair.
+ *
+ * `pa` (payee address / VPA) is required; without it there's no UPI ID to pay
+ * into, so the QR isn't usable regardless of what else it contains. `pn`
+ * (payee name) is optional per the spec, so it falls back to the VPA itself.
+ * `Uri.getQueryParameter` URL-decodes values automatically (e.g. "Campus+Cafe"
+ * or "Campus%20Cafe" both come back as "Campus Cafe").
+ *
+ * Returns null for anything that isn't a well-formed UPI pay URI — a plain
+ * website QR, a WiFi QR, random text, etc. — so the caller can surface an
+ * error instead of routing garbage into the payment flow.
+ */
+private fun parseUpiQr(rawValue: String): Pair<String, String>? {
+    val uri = runCatching { rawValue.toUri() }.getOrNull() ?: return null
+
+    if (uri.scheme?.lowercase() != "upi" || uri.host?.lowercase() != "pay") return null
+
+    val payeeAddress = uri.getQueryParameter("pa")?.takeIf { it.isNotBlank() } ?: return null
+    val payeeName    = uri.getQueryParameter("pn")?.takeIf { it.isNotBlank() } ?: payeeAddress
+
+    return payeeName to payeeAddress
 }
 
 /** Draws the four L-shaped corner brackets inside the viewfinder box. */

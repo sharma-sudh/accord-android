@@ -2,6 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!-- Required on Android 11+ (API 30) package-visibility rules so
+         resolveActivity()/queryIntentActivities() can actually see
+         GPay, PhonePe, Paytm, etc. for the upi:// scheme; without this
+         they'd appear "not installed" even when they are. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+    </queries>
+
     <application
         android:name=".AccordApplication"
         android:usesCleartextTraffic="true"

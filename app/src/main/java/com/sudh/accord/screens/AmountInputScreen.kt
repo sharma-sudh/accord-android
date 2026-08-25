@@ -1,14 +1,19 @@
 package com.sudh.accord.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -16,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.core.net.toUri
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,26 +33,58 @@ fun AmountInputScreen(
     walletBalance: Double,
     onConfirm:     (Double) -> Unit
 ) {
-    var rawInput    by remember { mutableStateOf("") }
-    var showError   by remember { mutableStateOf(false) }
+    val context      = LocalContext.current
+    var rawInput     by remember { mutableStateOf("") }
+    var showError    by remember { mutableStateOf(false) }
+    var launchError  by remember { mutableStateOf<String?>(null) }
     val focusManager = LocalFocusManager.current
 
     val parsedAmount: Double? = rawInput.toDoubleOrNull()
-    val isInsufficient = parsedAmount != null && parsedAmount > walletBalance
-    val isInputValid   = parsedAmount != null && parsedAmount > 0.0 && !isInsufficient
+    val isOverspend   = parsedAmount != null && parsedAmount > walletBalance
+    val isInputValid  = parsedAmount != null && parsedAmount > 0.0
 
     val errorMessage = when {
-        showError && rawInput.isBlank()  -> "Please enter an amount"
+        showError && rawInput.isBlank()   -> "Please enter an amount"
         showError && parsedAmount == null -> "Enter a valid number"
-        isInsufficient                   -> "Insufficient wallet balance"
-        else                             -> null
+        launchError != null                -> launchError
+        else                               -> null
     }
 
     fun attemptConfirm() {
-        showError = true
-        if (isInputValid) {
-            focusManager.clearFocus()
-            onConfirm(parsedAmount)
+        showError   = true
+        launchError = null
+        val amount  = parsedAmount
+        if (!isInputValid || amount == null) return
+
+        val upiUri = "upi://pay".toUri().buildUpon()
+            .appendQueryParameter("pa", upiId)
+            .appendQueryParameter("pn", merchantName)
+            .appendQueryParameter("am", "%.2f".format(amount))
+            .appendQueryParameter("cu", "INR")
+            .build()
+        val upiIntent = Intent(Intent.ACTION_VIEW, upiUri)
+
+        // Package-visibility (API 30+) means this only resolves anything
+        // when the <queries> entry for the upi scheme is present in the
+        // manifest — see AndroidManifest.xml.
+        if (upiIntent.resolveActivity(context.packageManager) == null) {
+            launchError = "No UPI app found on this device"
+            return
+        }
+
+        focusManager.clearFocus()
+        // Navigate first: by the time the user comes back from the UPI
+        // app (GPay/PhonePe/etc, chosen via the OS's own disambiguation
+        // dialog since we don't force a chooser), PaymentConfirmScreen is
+        // already the back-stack head.
+        onConfirm(amount)
+
+        try {
+            context.startActivity(upiIntent)
+        } catch (e: ActivityNotFoundException) {
+            // Resolved a moment ago but the resolution can still race an
+            // uninstall/disable; nothing to recover here, the user is
+            // already on PaymentConfirmScreen.
         }
     }
 
@@ -134,8 +172,9 @@ fun AmountInputScreen(
                     val clamped  = if (dotIndex != -1) {
                         filtered.substring(0, minOf(dotIndex + 3, filtered.length))
                     } else filtered
-                    rawInput  = clamped
-                    showError = false
+                    rawInput    = clamped
+                    showError   = false
+                    launchError = null
                 },
                 modifier       = Modifier.fillMaxWidth(),
                 label          = { Text("Amount (₹)") },
@@ -153,6 +192,35 @@ fun AmountInputScreen(
                     fontWeight = FontWeight.Medium
                 )
             )
+
+            // ── Overspend warning — friction, not a block. The pay button
+            // below stays enabled and onConfirm still fires; this only
+            // informs, matching the app's "no enforcement" design.
+            if (isOverspend) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.WarningAmber,
+                            contentDescription = null,
+                            tint               = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier           = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text  = "This is more than your wallet balance — you can still pay.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
 
             // ── Confirm button ────────────────────────────────────────────────
             Button(
