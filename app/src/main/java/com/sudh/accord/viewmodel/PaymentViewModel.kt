@@ -19,13 +19,14 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow(PaymentUiState())
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
-    // Deducts the amount on the backend. onSuccess is only invoked once the
+    // Logs the payment on the backend (POST /api/v1/transactions/payment —
+    // server-authoritative, takes only amount + merchantName; the user comes
+    // from the JWT, no upiId involved). onSuccess is only invoked once the
     // mutation has actually landed — the caller navigates home from there,
     // so we never leave the screen showing a stale "confirm" state for a
     // payment that didn't go through.
     fun confirmPayment(
         merchantName: String,
-        upiId: String,
         amount: Double,
         onSuccess: () -> Unit
     ) {
@@ -38,10 +39,9 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
 
             _uiState.update { it.copy(isSubmitting = true, error = null) }
 
-            paymentRepository.spend(
+            paymentRepository.logPayment(
                 token        = "Bearer $token",
                 merchantName = merchantName,
-                upiId        = upiId,
                 amount       = amount
             )
                 .onSuccess {

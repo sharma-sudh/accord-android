@@ -280,7 +280,7 @@ fun NavGraph() {
                     isSubmitting     = paymentUiState.isSubmitting,
                     submitError      = paymentUiState.error,
                     onConfirmPayment = {
-                        paymentViewModel.confirmPayment(merchantName, upiId, amount) {
+                        paymentViewModel.confirmPayment(merchantName, amount) {
                             navController.navigate(Screen.HomeScreen.route) {
                                 popUpTo(Screen.HomeScreen.route) { inclusive = false }
                             }

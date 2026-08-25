@@ -4,9 +4,10 @@ import com.sudh.accord.dto.AnalyticsResponseDto
 import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.GoogleSignInRequest
+import com.sudh.accord.dto.PaymentRequest
 import com.sudh.accord.dto.RefreshRequest
-import com.sudh.accord.dto.SpendRequest
 import com.sudh.accord.dto.TaskDto
+import com.sudh.accord.dto.TransactionResponseDto
 import com.sudh.accord.dto.UpdateBudgetRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -64,11 +65,11 @@ interface AccordApi {
         @Header("Authorization") token: String
     ): Double
 
-    @POST("api/v1/transactions/spend")
-    suspend fun spend(
+    @POST("api/v1/transactions/payment")
+    suspend fun logPayment(
         @Header("Authorization") token: String,
-        @Body request: SpendRequest
-    ): Double
+        @Body request: PaymentRequest
+    ): TransactionResponseDto
 
     @PATCH("api/v1/users")
     suspend fun updateBudget(
