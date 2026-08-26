@@ -24,6 +24,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    init {
+        // Reflects the app-open checkin (see MainActivity) as soon as it
+        // resolves, independent of loadData()'s own network calls.
+        viewModelScope.launch {
+            app.currentStreak.collect { streak ->
+                if (streak != null) {
+                    _uiState.update { it.copy(streakDays = streak) }
+                }
+            }
+        }
+    }
+
     fun loadData() {
         viewModelScope.launch {
             val token = tokenManager.getToken()

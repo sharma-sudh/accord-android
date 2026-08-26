@@ -6,8 +6,12 @@ import com.sudh.accord.network.RetrofitClient
 import com.sudh.accord.repository.AnalyticsRepository
 import com.sudh.accord.repository.AuthRepository
 import com.sudh.accord.repository.PaymentRepository
+import com.sudh.accord.repository.StreakRepository
 import com.sudh.accord.repository.TaskRepository
 import com.sudh.accord.repository.UserRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class AccordApplication : Application() {
 
@@ -17,6 +21,24 @@ class AccordApplication : Application() {
     lateinit var userRepository: UserRepository
     lateinit var analyticsRepository: AnalyticsRepository
     lateinit var paymentRepository: PaymentRepository
+    lateinit var streakRepository: StreakRepository
+
+    // Session-scoped streak result, set once by the single checkin call made
+    // at app open (see MainActivity). HomeViewModel and AnalyticsViewModel
+    // both collect this rather than each owning their own copy, since a
+    // single checkin should update both screens' streak displays. Null until
+    // that first checkin call resolves.
+    private val _currentStreak = MutableStateFlow<Int?>(null)
+    val currentStreak: StateFlow<Int?> = _currentStreak.asStateFlow()
+
+    fun setCurrentStreak(streak: Int) {
+        _currentStreak.value = streak
+    }
+
+    // Guards the app-open checkin call against firing again on an Activity
+    // recreation (e.g. rotation) within the same process — set right before
+    // the call is dispatched, not after it resolves.
+    var hasCheckedInThisSession = false
 
     override fun onCreate() {
         super.onCreate()
@@ -27,5 +49,6 @@ class AccordApplication : Application() {
         userRepository  = UserRepository()
         analyticsRepository = AnalyticsRepository()
         paymentRepository = PaymentRepository()
+        streakRepository = StreakRepository()
     }
 }

@@ -20,6 +20,19 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(AnalyticsUiState())
     val uiState: StateFlow<AnalyticsUiState> = _uiState.asStateFlow()
 
+    init {
+        // The analytics endpoint's own streakDays field is still hardcoded
+        // null server-side, so the real count comes from the app-open
+        // checkin instead (see MainActivity / AccordApplication.currentStreak).
+        viewModelScope.launch {
+            app.currentStreak.collect { streak ->
+                if (streak != null) {
+                    _uiState.update { it.copy(streakDays = streak) }
+                }
+            }
+        }
+    }
+
     fun loadAnalytics(range: String = _uiState.value.selectedRange) {
         viewModelScope.launch {
             val token = tokenManager.getToken()
@@ -37,7 +50,10 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
                             totalEarned    = dto.totalEarned,
                             totalSpent     = dto.totalSpent,
                             completionRate = dto.completionRate.toFloat(),
-                            streakDays     = dto.streakDays,
+                            // dto.streakDays is still hardcoded null server-side (see
+                            // init{} above) — never let it clobber a real value the
+                            // checkin collector already set.
+                            streakDays     = dto.streakDays ?: it.streakDays,
                             series         = dto.series.map { point ->
                                 AnalyticsSeriesPoint(
                                     date           = point.date,

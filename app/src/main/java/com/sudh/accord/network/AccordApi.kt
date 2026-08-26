@@ -10,6 +10,7 @@ import com.sudh.accord.dto.PaymentRequest
 import com.sudh.accord.dto.RegisterRequest
 import com.sudh.accord.dto.RefreshRequest
 import com.sudh.accord.dto.ResetPasswordRequest
+import com.sudh.accord.dto.StreakDto
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.TransactionResponseDto
 import com.sudh.accord.dto.UpdateBudgetRequest
@@ -107,6 +108,18 @@ interface AccordApi {
         @Header("Authorization") token: String,
         @Body request: UpdateBudgetRequest
     ): Response<Unit>
+
+    // ── Streak ───────────────────────────────────────────────────────────────
+
+    @POST("api/v1/streak/checkin")
+    suspend fun checkInStreak(
+        @Header("Authorization") token: String
+    ): StreakDto
+
+    @GET("api/v1/streak")
+    suspend fun getStreak(
+        @Header("Authorization") token: String
+    ): StreakDto
 
     // ── Analytics ────────────────────────────────────────────────────────────
 
