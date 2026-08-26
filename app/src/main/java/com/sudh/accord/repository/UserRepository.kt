@@ -1,6 +1,7 @@
 package com.sudh.accord.repository
 
 import com.sudh.accord.dto.UpdateBudgetRequest
+import com.sudh.accord.dto.UserProfileDto
 import com.sudh.accord.network.RetrofitClient
 
 class UserRepository {
@@ -18,5 +19,11 @@ class UserRepository {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun getProfile(token: String): Result<UserProfileDto> = try {
+        Result.success(api.getProfile(token))
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 }

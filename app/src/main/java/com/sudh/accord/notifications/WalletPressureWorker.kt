@@ -29,6 +29,8 @@ class WalletPressureWorker(
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
         val app = applicationContext as AccordApplication
+        if (!app.notificationTogglePrefs.walletPressureEnabled) return Result.success()
+
         val token = app.tokenManager.getToken() ?: return Result.success() // signed out — nothing to check
 
         val underPressure = app.streakRepository.checkWalletPressure("Bearer $token")

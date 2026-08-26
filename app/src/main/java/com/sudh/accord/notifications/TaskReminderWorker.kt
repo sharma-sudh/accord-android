@@ -1,12 +1,16 @@
 package com.sudh.accord.notifications
 
+import android.Manifest
+import android.R
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import com.sudh.accord.AccordApplication
 import com.sudh.accord.MainActivity
 
 class TaskReminderWorker(
@@ -14,7 +18,11 @@ class TaskReminderWorker(
     params: WorkerParameters
 ) : Worker(context, params) {
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun doWork(): Result {
+        val app = applicationContext as AccordApplication
+        if (!app.notificationTogglePrefs.taskRemindersEnabled) return Result.success()
+
         val taskId    = inputData.getString(KEY_TASK_ID) ?: return Result.failure()
         val taskTitle = inputData.getString(KEY_TASK_TITLE) ?: "Task"
         val isDueToday = inputData.getBoolean(KEY_IS_DUE_TODAY, false)
@@ -41,7 +49,7 @@ class TaskReminderWorker(
             // TODO: swap for a proper monochrome notification icon asset —
             // this system drawable is a placeholder so notifications compile
             // and render correctly out of the box.
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_dialog_info)
             .setContentTitle(if (isDueToday) "Due today: $taskTitle" else "Due tomorrow: $taskTitle")
             .setContentText(if (isDueToday) "This task is due today." else "This task is due tomorrow.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

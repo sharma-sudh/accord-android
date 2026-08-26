@@ -6,6 +6,7 @@ import com.sudh.accord.network.RetrofitClient
 import com.sudh.accord.notifications.NarrativeScheduler
 import com.sudh.accord.notifications.NotificationChannels
 import com.sudh.accord.notifications.NotificationPrefs
+import com.sudh.accord.notifications.NotificationTogglePrefs
 import com.sudh.accord.notifications.WalletPressureScheduler
 import com.sudh.accord.repository.AnalyticsRepository
 import com.sudh.accord.repository.AuthRepository
@@ -29,6 +30,7 @@ class AccordApplication : Application() {
     lateinit var streakRepository: StreakRepository
     lateinit var narrativeRepository: NarrativeRepository
     lateinit var notificationPrefs: NotificationPrefs
+    lateinit var notificationTogglePrefs: NotificationTogglePrefs
 
     // Session-scoped streak result, set once by the single checkin call made
     // at app open (see MainActivity). HomeViewModel and AnalyticsViewModel
@@ -59,6 +61,7 @@ class AccordApplication : Application() {
         streakRepository = StreakRepository()
         narrativeRepository = NarrativeRepository()
         notificationPrefs = NotificationPrefs(this)
+        notificationTogglePrefs = NotificationTogglePrefs(this)
         NotificationChannels.ensureCreated(this)
         WalletPressureScheduler.ensureScheduled(this)
         NarrativeScheduler.ensureScheduled(this)

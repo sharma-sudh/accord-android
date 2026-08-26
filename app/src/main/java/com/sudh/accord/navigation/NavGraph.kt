@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import com.sudh.accord.viewmodel.OnboardingViewModel
 import com.sudh.accord.viewmodel.PaymentViewModel
 import kotlinx.coroutines.flow.collect
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
@@ -47,6 +49,7 @@ fun NavGraph() {
 
     var isFabExpanded      by remember { mutableStateOf(false) }
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
+    var isSettingsSheetOpen by remember { mutableStateOf(false) }
 
     // Forced logout: emitted by TokenAuthenticator (on an OkHttp background
     // thread) when a refresh attempt fails because the refresh token itself
@@ -65,6 +68,24 @@ fun NavGraph() {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            // No gear icon existed anywhere in the app before this — there
+            // was no top bar on Home/Analytics at all, so this adds one
+            // rather than wiring up a pre-existing tap handler.
+            if (currentRoute in bottomNavRoutes) {
+                TopAppBar(
+                    title = {},
+                    actions = {
+                        IconButton(onClick = { isSettingsSheetOpen = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
+                )
+            }
+        },
         bottomBar = {
             if (currentRoute in bottomNavRoutes) {
                 Box(
@@ -310,6 +331,22 @@ fun NavGraph() {
                 onTaskAdded = { newTask ->
                     homeViewModel.addTask(newTask)
                     isAddTaskSheetOpen = false
+                }
+            )
+        }
+
+        if (isSettingsSheetOpen) {
+            SettingsSheet(
+                onDismiss   = { isSettingsSheetOpen = false },
+                onSignedOut = {
+                    isSettingsSheetOpen = false
+                    // Same pattern as the forced-logout path above: pop the
+                    // whole back stack so a signed-out user can't navigate
+                    // "back" into now-stale authenticated screens.
+                    navController.navigate(Screen.LoginScreen.route) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }

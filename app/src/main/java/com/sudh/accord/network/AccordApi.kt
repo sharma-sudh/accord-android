@@ -15,6 +15,7 @@ import com.sudh.accord.dto.StreakDto
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.TransactionResponseDto
 import com.sudh.accord.dto.UpdateBudgetRequest
+import com.sudh.accord.dto.UserProfileDto
 import com.sudh.accord.dto.VerifyOtpRequest
 import com.sudh.accord.dto.VerifyOtpResponse
 import retrofit2.Response
@@ -109,6 +110,14 @@ interface AccordApi {
         @Header("Authorization") token: String,
         @Body request: UpdateBudgetRequest
     ): Response<Unit>
+
+    // No "fetch my own profile" endpoint exists on the backend yet — this
+    // needs a matching GET /api/v1/users/me controller method added
+    // alongside the existing PATCH /api/v1/users one.
+    @GET("api/v1/users/me")
+    suspend fun getProfile(
+        @Header("Authorization") token: String
+    ): UserProfileDto
 
     // ── Streak ───────────────────────────────────────────────────────────────
 
