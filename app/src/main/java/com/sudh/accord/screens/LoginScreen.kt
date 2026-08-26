@@ -264,10 +264,10 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ── Sign in (email/password — not wired yet) ──────────────────────
+            // ── Sign in ─────────────────────────────────────────────────────
             Button(
-                onClick = { /* TODO: wire up email/password auth */ },
-                enabled = false,
+                onClick = { authViewModel.login(email.trim(), password) },
+                enabled = uiState !is AuthUiState.Loading && email.isNotBlank() && password.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -300,7 +300,7 @@ fun LoginScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = teal,
-                    modifier = Modifier.clickable { /* TODO: Screen.SignUpScreen.route */ }
+                    modifier = Modifier.clickable { navController.navigate(Screen.SignUpScreen.route) }
                 )
             }
         }

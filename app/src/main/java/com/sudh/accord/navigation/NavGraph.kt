@@ -180,6 +180,7 @@ fun NavGraph() {
             modifier         = Modifier.padding(innerPadding)
         ) {
             composable(Screen.LoginScreen.route)      { LoginScreen(navController) }
+            composable(Screen.SignUpScreen.route)     { SignUpScreen(navController) }
             composable(Screen.OnboardingScreen.route) { OnboardingScreen(navController, onboardingViewModel) }
 
             composable(Screen.HomeScreen.route) {

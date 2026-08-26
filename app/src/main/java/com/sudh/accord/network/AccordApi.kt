@@ -4,7 +4,9 @@ import com.sudh.accord.dto.AnalyticsResponseDto
 import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.GoogleSignInRequest
+import com.sudh.accord.dto.LoginRequest
 import com.sudh.accord.dto.PaymentRequest
+import com.sudh.accord.dto.RegisterRequest
 import com.sudh.accord.dto.RefreshRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.TransactionResponseDto
@@ -26,6 +28,16 @@ interface AccordApi {
     @POST("auth/google")
     suspend fun googleSignIn(
         @Body body: GoogleSignInRequest
+    ): AuthResponse
+
+    @POST("auth/register")
+    suspend fun register(
+        @Body body: RegisterRequest
+    ): AuthResponse
+
+    @POST("auth/login")
+    suspend fun login(
+        @Body body: LoginRequest
     ): AuthResponse
 
     @POST("auth/refresh")
