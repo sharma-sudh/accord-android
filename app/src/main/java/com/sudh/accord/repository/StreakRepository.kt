@@ -18,4 +18,10 @@ class StreakRepository {
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+    suspend fun checkWalletPressure(token: String): Result<Boolean> = try {
+        Result.success(api.checkWalletPressure(token))
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 }

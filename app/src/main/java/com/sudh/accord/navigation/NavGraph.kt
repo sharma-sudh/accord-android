@@ -207,6 +207,8 @@ fun NavGraph() {
                     isLoading          = homeUiState.isLoading,
                     error              = homeUiState.error,
                     actionError        = homeUiState.actionError,
+                    showNotificationNudge      = homeUiState.showNotificationNudge,
+                    onDismissNotificationNudge = homeViewModel::dismissNotificationNudge,
                     onRetry            = homeViewModel::loadData,
                     onTaskComplete     = homeViewModel::completeTask,
                     onTaskDelete       = homeViewModel::deleteTask,

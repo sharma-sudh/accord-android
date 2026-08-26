@@ -14,4 +14,7 @@ data class HomeUiState(
     // Transient result of addTask/completeTask/deleteTask — shown as a
     // snackbar, never hides the already-loaded task list.
     val actionError: String?  = null,
+    // One-time soft nudge shown if the user denied POST_NOTIFICATIONS and a
+    // week has passed — see HomeViewModel.evaluateNotificationNudge.
+    val showNotificationNudge: Boolean = false,
 )

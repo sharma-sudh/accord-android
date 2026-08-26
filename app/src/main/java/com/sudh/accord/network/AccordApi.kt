@@ -121,6 +121,11 @@ interface AccordApi {
         @Header("Authorization") token: String
     ): StreakDto
 
+    @GET("api/v1/streak/wallet-pressure-check")
+    suspend fun checkWalletPressure(
+        @Header("Authorization") token: String
+    ): Boolean
+
     // ── Analytics ────────────────────────────────────────────────────────────
 
     @GET("api/v1/analytics")

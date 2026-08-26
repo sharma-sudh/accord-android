@@ -3,6 +3,9 @@ package com.sudh.accord
 import android.app.Application
 import com.sudh.accord.auth.TokenManager
 import com.sudh.accord.network.RetrofitClient
+import com.sudh.accord.notifications.NotificationChannels
+import com.sudh.accord.notifications.NotificationPrefs
+import com.sudh.accord.notifications.WalletPressureScheduler
 import com.sudh.accord.repository.AnalyticsRepository
 import com.sudh.accord.repository.AuthRepository
 import com.sudh.accord.repository.PaymentRepository
@@ -22,6 +25,7 @@ class AccordApplication : Application() {
     lateinit var analyticsRepository: AnalyticsRepository
     lateinit var paymentRepository: PaymentRepository
     lateinit var streakRepository: StreakRepository
+    lateinit var notificationPrefs: NotificationPrefs
 
     // Session-scoped streak result, set once by the single checkin call made
     // at app open (see MainActivity). HomeViewModel and AnalyticsViewModel
@@ -50,5 +54,8 @@ class AccordApplication : Application() {
         analyticsRepository = AnalyticsRepository()
         paymentRepository = PaymentRepository()
         streakRepository = StreakRepository()
+        notificationPrefs = NotificationPrefs(this)
+        NotificationChannels.ensureCreated(this)
+        WalletPressureScheduler.ensureScheduled(this)
     }
 }

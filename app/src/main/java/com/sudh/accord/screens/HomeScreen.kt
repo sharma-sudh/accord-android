@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material3.*
@@ -37,6 +39,8 @@ fun HomeScreen(
     isLoading: Boolean,
     error: String?,
     actionError: String?,
+    showNotificationNudge: Boolean,
+    onDismissNotificationNudge: () -> Unit,
     onRetry: () -> Unit,
     onTaskComplete: (Task) -> Unit,
     onTaskDelete: (Task) -> Unit,
@@ -115,6 +119,12 @@ fun HomeScreen(
                     monthlyBudget = monthlyBudget,
                     streakDays    = streakDays
                 )
+            }
+
+            if (showNotificationNudge) {
+                item {
+                    NotificationNudgeCard(onDismiss = onDismissNotificationNudge)
+                }
             }
 
             if (isEmpty) {
@@ -291,6 +301,55 @@ private fun LegendChip(dotColor: Color, label: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             color      = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+// ── Notification nudge ───────────────────────────────────────────────────────
+
+@Composable
+private fun NotificationNudgeCard(onDismiss: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.NotificationsNone,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text  = "Turn on notifications",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text  = "Get a reminder before your tasks are due.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Dismiss",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }
 

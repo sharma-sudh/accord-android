@@ -7,6 +7,8 @@ import com.sudh.accord.AccordApplication
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.model.Task
+import com.sudh.accord.notifications.NotificationPermissionHelper
+import com.sudh.accord.notifications.TaskReminderScheduler
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,12 +16,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app            = getApplication<AccordApplication>()
     private val taskRepository = app.taskRepository
     private val tokenManager   = app.tokenManager
+    private val notificationPrefs = app.notificationPrefs
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -36,7 +40,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Shows the one-time soft nudge only if: permission is still denied, it
+    // was denied at least a week ago, and the nudge has never been shown
+    // before. Re-checked on every loadData() so a Settings-page grant made
+    // outside the app is picked up without needing a live observer.
+    private fun evaluateNotificationNudge() {
+        if (notificationPrefs.nudgeShown) return
+        if (NotificationPermissionHelper.isGranted(app)) return
+        val deniedAt = notificationPrefs.deniedAtMillis
+        if (deniedAt == 0L) return
+
+        val oneWeekMillis = TimeUnit.DAYS.toMillis(7)
+        if (System.currentTimeMillis() - deniedAt >= oneWeekMillis) {
+            _uiState.update { it.copy(showNotificationNudge = true) }
+        }
+    }
+
+    fun dismissNotificationNudge() {
+        notificationPrefs.nudgeShown = true
+        _uiState.update { it.copy(showNotificationNudge = false) }
+    }
+
     fun loadData() {
+        evaluateNotificationNudge()
         viewModelScope.launch {
             val token = tokenManager.getToken()
             if (token == null) {
@@ -93,6 +119,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             taskRepository.completeTask("Bearer $token", task.id)
+                .onSuccess {
+                    // Completed early — the due-date reminders are no longer relevant.
+                    TaskReminderScheduler.cancel(app, task.id)
+                }
                 .onFailure { e ->
                     // revert and surface the error
                     _uiState.update { current ->
@@ -116,6 +146,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             taskRepository.deleteTask("Bearer $token", task.id)
+                .onSuccess {
+                    TaskReminderScheduler.cancel(app, task.id)
+                }
                 .onFailure { e ->
                     _uiState.update { current ->
                         current.copy(
@@ -143,6 +176,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 .onSuccess { dto ->
                     _uiState.update { current ->
                         current.copy(tasks = current.tasks + dto.toTask())
+                    }
+                    // Reminders only make sense for one-off tasks with a due date.
+                    if (dto.type == "ONE_OFF" && dto.dueDate != null) {
+                        TaskReminderScheduler.schedule(app, dto.id, dto.title, dto.dueDate)
                     }
                 }
                 .onFailure { e ->
