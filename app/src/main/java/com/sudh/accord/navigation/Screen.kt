@@ -4,9 +4,12 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 
 sealed class Screen(val route: String) {
-    object LoginScreen       : Screen("login_screen")
-    object SignUpScreen      : Screen("sign_up_screen")
-    object OnboardingScreen  : Screen("onboarding_screen")
+    object LoginScreen           : Screen("login_screen")
+    object SignUpScreen          : Screen("sign_up_screen")
+    object ForgotPasswordScreen  : Screen("forgot_password_screen")
+    object OtpVerifyScreen       : Screen("otp_verify_screen")
+    object ResetPasswordScreen   : Screen("reset_password_screen")
+    object OnboardingScreen      : Screen("onboarding_screen")
     object HomeScreen        : Screen("home_screen")
     object AnalyticsScreen   : Screen("analytics_screen")
     object QrScannerScreen   : Screen("qr_scanner_screen")

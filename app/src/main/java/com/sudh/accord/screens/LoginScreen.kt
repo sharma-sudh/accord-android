@@ -257,7 +257,7 @@ fun LoginScreen(
 
             // ── Forgot password ───────────────────────────────────────────────
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                TextButton(onClick = { /* TODO: Screen.ForgotPasswordScreen.route */ }) {
+                TextButton(onClick = { navController.navigate(Screen.ForgotPasswordScreen.route) }) {
                     Text(text = "Forgot password?", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = teal)
                 }
             }

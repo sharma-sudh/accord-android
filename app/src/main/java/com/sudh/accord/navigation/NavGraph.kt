@@ -25,6 +25,7 @@ import com.sudh.accord.auth.SessionManager
 import com.sudh.accord.screens.*
 import com.sudh.accord.components.*
 import com.sudh.accord.viewmodel.AnalyticsViewModel
+import com.sudh.accord.viewmodel.ForgotPasswordViewModel
 import com.sudh.accord.viewmodel.HomeViewModel
 import com.sudh.accord.viewmodel.OnboardingViewModel
 import com.sudh.accord.viewmodel.PaymentViewModel
@@ -39,6 +40,7 @@ fun NavGraph() {
     val homeViewModel: HomeViewModel               = viewModel()
     val analyticsViewModel: AnalyticsViewModel     = viewModel()
     val onboardingViewModel: OnboardingViewModel   = viewModel()
+    val forgotPasswordViewModel: ForgotPasswordViewModel = viewModel()
 
     val homeUiState      by homeViewModel.uiState.collectAsStateWithLifecycle()
     val analyticsUiState by analyticsViewModel.uiState.collectAsStateWithLifecycle()
@@ -181,6 +183,15 @@ fun NavGraph() {
         ) {
             composable(Screen.LoginScreen.route)      { LoginScreen(navController) }
             composable(Screen.SignUpScreen.route)     { SignUpScreen(navController) }
+            composable(Screen.ForgotPasswordScreen.route) {
+                ForgotPasswordScreen(navController, forgotPasswordViewModel)
+            }
+            composable(Screen.OtpVerifyScreen.route) {
+                OtpVerifyScreen(navController, forgotPasswordViewModel)
+            }
+            composable(Screen.ResetPasswordScreen.route) {
+                ResetPasswordScreen(navController, forgotPasswordViewModel)
+            }
             composable(Screen.OnboardingScreen.route) { OnboardingScreen(navController, onboardingViewModel) }
 
             composable(Screen.HomeScreen.route) {

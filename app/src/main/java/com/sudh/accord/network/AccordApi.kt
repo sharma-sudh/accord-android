@@ -3,14 +3,18 @@ package com.sudh.accord.network
 import com.sudh.accord.dto.AnalyticsResponseDto
 import com.sudh.accord.dto.AuthResponse
 import com.sudh.accord.dto.CreateTaskRequest
+import com.sudh.accord.dto.ForgotPasswordRequest
 import com.sudh.accord.dto.GoogleSignInRequest
 import com.sudh.accord.dto.LoginRequest
 import com.sudh.accord.dto.PaymentRequest
 import com.sudh.accord.dto.RegisterRequest
 import com.sudh.accord.dto.RefreshRequest
+import com.sudh.accord.dto.ResetPasswordRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.dto.TransactionResponseDto
 import com.sudh.accord.dto.UpdateBudgetRequest
+import com.sudh.accord.dto.VerifyOtpRequest
+import com.sudh.accord.dto.VerifyOtpResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -39,6 +43,21 @@ interface AccordApi {
     suspend fun login(
         @Body body: LoginRequest
     ): AuthResponse
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body body: ForgotPasswordRequest
+    ): Response<Unit>
+
+    @POST("auth/verify-otp")
+    suspend fun verifyOtp(
+        @Body body: VerifyOtpRequest
+    ): VerifyOtpResponse
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(
+        @Body body: ResetPasswordRequest
+    ): Response<Unit>
 
     @POST("auth/refresh")
     suspend fun refresh(
