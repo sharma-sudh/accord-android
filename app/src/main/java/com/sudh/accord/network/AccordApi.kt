@@ -6,6 +6,7 @@ import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.ForgotPasswordRequest
 import com.sudh.accord.dto.GoogleSignInRequest
 import com.sudh.accord.dto.LoginRequest
+import com.sudh.accord.dto.NarrativeDto
 import com.sudh.accord.dto.PaymentRequest
 import com.sudh.accord.dto.RegisterRequest
 import com.sudh.accord.dto.RefreshRequest
@@ -125,6 +126,18 @@ interface AccordApi {
     suspend fun checkWalletPressure(
         @Header("Authorization") token: String
     ): Boolean
+
+    // ── Narrative ────────────────────────────────────────────────────────────
+
+    // Response<NarrativeDto> (not a bare NarrativeDto) deliberately: the
+    // backend returns 204 when no narrative has been generated yet for this
+    // user (new user, or before the first Sunday run), and Retrofit leaves
+    // body() null for 204 without invoking the Gson converter — a bare
+    // return type would instead throw on the empty body.
+    @GET("api/v1/narrative/latest")
+    suspend fun getLatestNarrative(
+        @Header("Authorization") token: String
+    ): Response<NarrativeDto>
 
     // ── Analytics ────────────────────────────────────────────────────────────
 
