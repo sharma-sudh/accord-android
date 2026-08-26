@@ -7,9 +7,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sudh.accord.navigation.NavGraph
 import com.sudh.accord.ui.theme.AccordTheme
+import com.sudh.accord.viewmodel.ThemeViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -48,7 +53,15 @@ class MainActivity : ComponentActivity() {
         maybeRequestNotificationPermission()
 
         setContent {
-            AccordTheme {
+            // ThemeViewModel is obtained here (activity-scoped) and again
+            // from within NavGraph's top bar — Compose resolves both to the
+            // same instance via the default ViewModelStoreOwner, so the
+            // toggle there and the color scheme applied here always agree.
+            val themeViewModel: ThemeViewModel = viewModel()
+            val darkThemeOverride by themeViewModel.darkThemeOverride.collectAsStateWithLifecycle()
+            val useDarkTheme = darkThemeOverride ?: isSystemInDarkTheme()
+
+            AccordTheme(darkTheme = useDarkTheme) {
                 NavGraph()
             }
         }

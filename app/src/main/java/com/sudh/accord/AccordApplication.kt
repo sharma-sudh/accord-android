@@ -15,6 +15,7 @@ import com.sudh.accord.repository.PaymentRepository
 import com.sudh.accord.repository.StreakRepository
 import com.sudh.accord.repository.TaskRepository
 import com.sudh.accord.repository.UserRepository
+import com.sudh.accord.ui.theme.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,7 @@ class AccordApplication : Application() {
     lateinit var narrativeRepository: NarrativeRepository
     lateinit var notificationPrefs: NotificationPrefs
     lateinit var notificationTogglePrefs: NotificationTogglePrefs
+    lateinit var themePreferences: ThemePreferences
 
     // Session-scoped streak result, set once by the single checkin call made
     // at app open (see MainActivity). HomeViewModel and AnalyticsViewModel
@@ -62,6 +64,7 @@ class AccordApplication : Application() {
         narrativeRepository = NarrativeRepository()
         notificationPrefs = NotificationPrefs(this)
         notificationTogglePrefs = NotificationTogglePrefs(this)
+        themePreferences = ThemePreferences(this)
         NotificationChannels.ensureCreated(this)
         WalletPressureScheduler.ensureScheduled(this)
         NarrativeScheduler.ensureScheduled(this)

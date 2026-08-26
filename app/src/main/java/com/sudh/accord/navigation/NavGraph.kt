@@ -1,13 +1,16 @@
 package com.sudh.accord.navigation
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -30,6 +33,7 @@ import com.sudh.accord.viewmodel.ForgotPasswordViewModel
 import com.sudh.accord.viewmodel.HomeViewModel
 import com.sudh.accord.viewmodel.OnboardingViewModel
 import com.sudh.accord.viewmodel.PaymentViewModel
+import com.sudh.accord.viewmodel.ThemeViewModel
 import kotlinx.coroutines.flow.collect
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,9 +47,15 @@ fun NavGraph() {
     val analyticsViewModel: AnalyticsViewModel     = viewModel()
     val onboardingViewModel: OnboardingViewModel   = viewModel()
     val forgotPasswordViewModel: ForgotPasswordViewModel = viewModel()
+    // Same activity-scoped instance MainActivity's setContent root reads —
+    // see the comment there — so toggling here updates the actual applied
+    // color scheme, not a second disconnected copy of it.
+    val themeViewModel: ThemeViewModel              = viewModel()
 
     val homeUiState      by homeViewModel.uiState.collectAsStateWithLifecycle()
     val analyticsUiState by analyticsViewModel.uiState.collectAsStateWithLifecycle()
+    val darkThemeOverride by themeViewModel.darkThemeOverride.collectAsStateWithLifecycle()
+    val isDarkTheme = darkThemeOverride ?: isSystemInDarkTheme()
 
     var isFabExpanded      by remember { mutableStateOf(false) }
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
@@ -75,6 +85,14 @@ fun NavGraph() {
             if (currentRoute in bottomNavRoutes) {
                 TopAppBar(
                     title = {},
+                    navigationIcon = {
+                        IconButton(onClick = { themeViewModel.toggleDarkTheme(isDarkTheme) }) {
+                            Icon(
+                                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = if (isDarkTheme) "Switch to light mode" else "Switch to dark mode"
+                            )
+                        }
+                    },
                     actions = {
                         IconButton(onClick = { isSettingsSheetOpen = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")

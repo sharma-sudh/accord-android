@@ -100,4 +100,6 @@ dependencies {
     implementation(libs.mlkit.barcode.scanning)
 
     implementation(libs.androidx.work.runtime.ktx)
+
+    implementation(libs.androidx.datastore.preferences)
 }
