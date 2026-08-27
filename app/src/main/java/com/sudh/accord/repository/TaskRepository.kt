@@ -10,6 +10,7 @@ import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.TaskDto
 import com.sudh.accord.network.RetrofitClient
 import com.sudh.accord.sync.SyncScheduler
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -28,9 +29,46 @@ class TaskRepository(context: Context) {
     private val appContext = context.applicationContext
     private val api = RetrofitClient.api
     private val taskDao = AccordDatabase.getInstance(appContext).taskDao()
+    private val gson = Gson()
 
     fun observeTasks(): Flow<List<TaskDto>> =
         taskDao.observeTasks().map { list -> list.map { it.toDto() } }
+
+    // Tasks SyncWorker flagged as CONFLICT — hidden from observeTasks() (see
+    // TaskDao) until resolved. Pair with getConflictServerSnapshot(id) for
+    // the "yours vs. theirs" comparison a resolution screen needs.
+    fun observeConflicts(): Flow<List<TaskDto>> =
+        taskDao.observeConflicts().map { list -> list.map { it.toDto() } }
+
+    suspend fun getConflictServerSnapshot(id: String): TaskDto? {
+        val entity = taskDao.getById(id) ?: return null
+        val json = entity.conflictServerSnapshot ?: return null
+        return gson.fromJson(json, TaskDto::class.java)
+    }
+
+    // User picked how to resolve a flagged conflict — their own edit, the
+    // server's copy as-is, or a manual merge of the two; [resolved] is
+    // whatever they landed on. [resolved.version] is the server's version
+    // from the conflict snapshot, so it becomes the new baseVersion on the
+    // retry SyncWorker will push through PENDING_UPDATE.
+    suspend fun resolveConflict(id: String, resolved: TaskDto) {
+        val existing = taskDao.getById(id) ?: return
+        taskDao.upsert(
+            existing.copy(
+                title = resolved.title,
+                description = resolved.description,
+                value = resolved.value,
+                type = resolved.type,
+                isCompleted = resolved.isCompleted,
+                dueDate = resolved.dueDate,
+                lastCompletedAt = resolved.lastCompletedAt,
+                version = resolved.version,
+                syncState = SyncState.PENDING_UPDATE,
+                conflictServerSnapshot = null
+            )
+        )
+        SyncScheduler.enqueueNow(appContext)
+    }
 
     // Best-effort network refresh merged into Room. Failures (offline, 5xx,
     // expired token) are swallowed here on purpose — refreshFromServer()

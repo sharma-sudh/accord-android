@@ -13,6 +13,8 @@ import com.sudh.accord.dto.RefreshRequest
 import com.sudh.accord.dto.ResetPasswordRequest
 import com.sudh.accord.dto.StreakDto
 import com.sudh.accord.dto.TaskDto
+import com.sudh.accord.dto.TaskSyncRequest
+import com.sudh.accord.dto.TaskSyncResponse
 import com.sudh.accord.dto.TransactionResponseDto
 import com.sudh.accord.dto.UpdateBudgetRequest
 import com.sudh.accord.dto.UserProfileDto
@@ -91,6 +93,19 @@ interface AccordApi {
         @Header("Authorization") token: String,
         @Path("id") id: String
     ): TaskDto
+
+    // Version-vector conflict resolution for a mutation on a task that's
+    // already reached the server (PENDING_UPDATE) — see TaskSyncRequest /
+    // TaskSyncResponse. Needs a matching backend endpoint: compares
+    // `baseVersion` against the server's current Task.version and either
+    // applies the change cleanly, field-level merges it, or returns
+    // CONFLICT with its own copy for the user to resolve.
+    @PATCH("api/v1/tasks/{id}/sync")
+    suspend fun syncTask(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: TaskSyncRequest
+    ): TaskSyncResponse
 
     // ── Balance ───────────────────────────────────────────────────────────────
 

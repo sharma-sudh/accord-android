@@ -13,8 +13,12 @@ import com.sudh.accord.data.local.TransactionEntity
 import com.sudh.accord.data.local.toEntity
 import com.sudh.accord.dto.CreateTaskRequest
 import com.sudh.accord.dto.PaymentRequest
+import com.sudh.accord.dto.TaskSyncRequest
+import com.sudh.accord.dto.TaskSyncStatus
 import com.sudh.accord.network.AccordApi
 import com.sudh.accord.network.RetrofitClient
+import com.google.gson.Gson
+import java.time.Instant
 
 /**
  * Reconciles every row still marked pending in Room against the backend.
@@ -26,6 +30,8 @@ class SyncWorker(
     context: Context,
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
+
+    private val gson = Gson()
 
     override suspend fun doWork(): Result {
         val app = applicationContext as AccordApplication
@@ -78,8 +84,42 @@ class SyncWorker(
             }
 
             SyncState.PENDING_UPDATE -> {
-                val updated = api.completeTask(authHeader, task.id)
-                dao.upsert(updated.toEntity(SyncState.SYNCED))
+                // Field-level: only the fields a local mutation actually
+                // touches. Task completion is the only PENDING_UPDATE
+                // trigger today, so this is just the completion delta — the
+                // payload shape (recordId/baseVersion/changes/clientTimestamp)
+                // is what generalizes if more editable fields are added later.
+                val request = TaskSyncRequest(
+                    recordId = task.id,
+                    baseVersion = task.version,
+                    changes = mapOf(
+                        "isCompleted" to task.isCompleted,
+                        "lastCompletedAt" to task.lastCompletedAt
+                    ),
+                    clientTimestamp = Instant.now().toString()
+                )
+                val response = api.syncTask(authHeader, task.id, request)
+                when (response.status) {
+                    TaskSyncStatus.APPLIED, TaskSyncStatus.MERGED -> {
+                        val resolved = response.task
+                            ?: error("sync response missing task for status ${response.status}")
+                        dao.upsert(resolved.toEntity(SyncState.SYNCED))
+                    }
+                    TaskSyncStatus.CONFLICT -> {
+                        // Not a failure to retry — it's flagged for the user.
+                        // Excluded from getPending() going forward until
+                        // TaskRepository.resolveConflict() clears it.
+                        val serverSnapshot = response.serverTask
+                            ?: error("conflict response missing serverTask")
+                        dao.upsert(
+                            task.copy(
+                                syncState = SyncState.CONFLICT,
+                                conflictServerSnapshot = gson.toJson(serverSnapshot)
+                            )
+                        )
+                    }
+                    else -> error("unrecognized sync status: ${response.status}")
+                }
                 true
             }
 
@@ -90,7 +130,8 @@ class SyncWorker(
                 true
             }
 
-            SyncState.SYNCED -> true // shouldn't be in the pending set, but a no-op is safe
+            SyncState.SYNCED,
+            SyncState.CONFLICT -> true // neither should be in the pending set, but a no-op is safe
         }
     } catch (e: Exception) {
         false

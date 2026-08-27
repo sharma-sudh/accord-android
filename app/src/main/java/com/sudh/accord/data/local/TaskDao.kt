@@ -12,15 +12,23 @@ interface TaskDao {
     // PENDING_DELETE rows are hidden from every read — from the user's
     // perspective the task is already gone the moment deleteTask() runs
     // locally; the row itself sticks around only so SyncWorker knows to
-    // tell the server about it.
-    @Query("SELECT * FROM tasks WHERE syncState != 'PENDING_DELETE' ORDER BY dueDate IS NULL, dueDate ASC")
+    // tell the server about it. CONFLICT rows are hidden too — a task stuck
+    // in CONFLICT shouldn't silently reappear in the normal list with
+    // whichever value happened to be on the row; it's surfaced separately
+    // via observeConflicts() until the user resolves it.
+    @Query("SELECT * FROM tasks WHERE syncState NOT IN ('PENDING_DELETE', 'CONFLICT') ORDER BY dueDate IS NULL, dueDate ASC")
     fun observeTasks(): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TaskEntity?
 
-    @Query("SELECT * FROM tasks WHERE syncState != 'SYNCED'")
+    // CONFLICT is excluded here too: it's a terminal state until the user
+    // resolves it, not something SyncWorker should keep retrying every run.
+    @Query("SELECT * FROM tasks WHERE syncState NOT IN ('SYNCED', 'CONFLICT')")
     suspend fun getPending(): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE syncState = 'CONFLICT' ORDER BY title ASC")
+    fun observeConflicts(): Flow<List<TaskEntity>>
 
     @Upsert
     suspend fun upsert(task: TaskEntity)

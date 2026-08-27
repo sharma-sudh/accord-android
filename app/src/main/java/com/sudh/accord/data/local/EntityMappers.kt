@@ -13,7 +13,10 @@ fun TaskDto.toEntity(state: SyncState): TaskEntity = TaskEntity(
     dueDate = dueDate,
     lastCompletedAt = lastCompletedAt,
     userId = userId,
-    syncState = state
+    syncState = state,
+    version = version
+    // conflictServerSnapshot deliberately left at its default (null): a
+    // fresh TaskDto from the server is never itself a conflict record.
 )
 
 fun TaskEntity.toDto(): TaskDto = TaskDto(
@@ -25,7 +28,8 @@ fun TaskEntity.toDto(): TaskDto = TaskDto(
     isCompleted = isCompleted,
     dueDate = dueDate,
     lastCompletedAt = lastCompletedAt,
-    userId = userId
+    userId = userId,
+    version = version
 )
 
 fun TransactionResponseDto.toEntity(state: SyncState): TransactionEntity = TransactionEntity(
