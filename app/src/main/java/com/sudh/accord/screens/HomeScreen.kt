@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Whatshot
@@ -40,6 +41,7 @@ fun HomeScreen(
     error: String?,
     actionError: String?,
     showNotificationNudge: Boolean,
+    hasEverAddedTask: Boolean,
     onDismissNotificationNudge: () -> Unit,
     onRetry: () -> Unit,
     onTaskComplete: (Task) -> Unit,
@@ -128,7 +130,14 @@ fun HomeScreen(
             }
 
             if (isEmpty) {
-                item { EmptyTasksState() }
+                item {
+                    // hasEverAddedTask is independent of the current list,
+                    // so a recurring task's cycle reset (list emptying,
+                    // then repopulating on the next cycle) never flips this
+                    // back to the "yet" copy once the user has ever added
+                    // a task — see HomeUiState.hasEverAddedTask.
+                    if (hasEverAddedTask) AllCaughtUpState() else NoTasksYetState()
+                }
             } else {
                 if (recurringTasks.isNotEmpty()) {
                     item { SectionLabel(text = "Recurring") }
@@ -366,10 +375,10 @@ private fun SectionLabel(text: String) {
     )
 }
 
-// ── Empty state ──────────────────────────────────────────────────────────────
+// ── Empty states ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun EmptyTasksState() {
+private fun NoTasksYetState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -400,6 +409,48 @@ private fun EmptyTasksState() {
         Spacer(Modifier.height(4.dp))
         Text(
             text      = "Tap + below to add something worth crediting.",
+            style     = MaterialTheme.typography.bodyMedium,
+            color     = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+// Shown instead of NoTasksYetState once the user has ever added a task
+// (see HomeUiState.hasEverAddedTask) and the current list is empty because
+// everything due right now is done — not because nothing was ever created.
+@Composable
+private fun AllCaughtUpState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 64.dp, bottom = 32.dp)
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text       = "All caught up",
+            style      = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color      = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text      = "Nothing due right now. Recurring tasks will reappear next cycle.",
             style     = MaterialTheme.typography.bodyMedium,
             color     = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

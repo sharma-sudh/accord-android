@@ -3,6 +3,8 @@ package com.sudh.accord.navigation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -35,6 +36,7 @@ import com.sudh.accord.viewmodel.OnboardingViewModel
 import com.sudh.accord.viewmodel.PaymentViewModel
 import com.sudh.accord.viewmodel.ThemeViewModel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +63,15 @@ fun NavGraph() {
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
     var isSettingsSheetOpen by remember { mutableStateOf(false) }
 
+    // Backs the swipeable Home/Analytics pager (see the Screen.HomeScreen.route
+    // composable below). Hoisted here, not inside that composable, so the
+    // bottom dock — which lives in the Scaffold's bottomBar slot, a sibling
+    // of the NavHost — can both read the current page (for its selected
+    // state) and drive it (tapping a dock item scrolls the pager instead of
+    // navigating, since Home/Analytics are now pages, not separate routes).
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerScope = rememberCoroutineScope()
+
     // Forced logout: emitted by TokenAuthenticator (on an OkHttp background
     // thread) when a refresh attempt fails because the refresh token itself
     // is expired or revoked. Clear the back stack so the user can't navigate
@@ -74,7 +85,7 @@ fun NavGraph() {
         }
     }
 
-    val bottomNavRoutes = listOf(Screen.HomeScreen.route, Screen.AnalyticsScreen.route)
+    val bottomNavRoutes = listOf(Screen.HomeScreen.route)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -163,13 +174,10 @@ fun NavGraph() {
                             DockNavItem(
                                 icon      = Icons.Default.Home,
                                 label     = "Home",
-                                selected  = currentRoute == Screen.HomeScreen.route,
+                                selected  = pagerState.currentPage == 0,
                                 onClick   = {
                                     isFabExpanded = false
-                                    navController.navigate(Screen.HomeScreen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true; restoreState = true
-                                    }
+                                    pagerScope.launch { pagerState.animateScrollToPage(0) }
                                 }
                             )
 
@@ -178,13 +186,10 @@ fun NavGraph() {
                             DockNavItem(
                                 icon      = Icons.Default.BarChart,
                                 label     = "Analytics",
-                                selected  = currentRoute == Screen.AnalyticsScreen.route,
+                                selected  = pagerState.currentPage == 1,
                                 onClick   = {
                                     isFabExpanded = false
-                                    navController.navigate(Screen.AnalyticsScreen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true; restoreState = true
-                                    }
+                                    pagerScope.launch { pagerState.animateScrollToPage(1) }
                                 }
                             )
                         }
@@ -234,48 +239,65 @@ fun NavGraph() {
             composable(Screen.OnboardingScreen.route) { OnboardingScreen(navController, onboardingViewModel) }
 
             composable(Screen.HomeScreen.route) {
-                LaunchedEffect(Unit) {
-                    homeViewModel.loadData()
-                }
-                HomeScreen(
-                    tasks              = homeUiState.tasks,
-                    walletBalance      = homeUiState.walletBalance,
-                    amountSpent        = homeUiState.amountSpent,
-                    monthlyBudget      = homeUiState.monthlyBudget,
-                    streakDays         = homeUiState.streakDays,
-                    isLoading          = homeUiState.isLoading,
-                    error              = homeUiState.error,
-                    actionError        = homeUiState.actionError,
-                    showNotificationNudge      = homeUiState.showNotificationNudge,
-                    onDismissNotificationNudge = homeViewModel::dismissNotificationNudge,
-                    onRetry            = homeViewModel::loadData,
-                    onTaskComplete     = homeViewModel::completeTask,
-                    onTaskDelete       = homeViewModel::deleteTask,
-                    onActionErrorShown = homeViewModel::clearActionError,
-                )
-            }
+                // Home and Analytics are pages of one pager, not separate
+                // routes — deferred as tap-only in the design doc originally,
+                // now wired up. Landing here always lands on page 0 (Home);
+                // Analytics is reached by swiping or tapping its dock item.
+                HorizontalPager(
+                    state    = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            // Fires once when this page first enters
+                            // composition — same load-on-arrival timing the
+                            // old separate Home route had via LaunchedEffect(Unit).
+                            LaunchedEffect(Unit) {
+                                homeViewModel.loadData()
+                            }
+                            HomeScreen(
+                                tasks              = homeUiState.tasks,
+                                walletBalance      = homeUiState.walletBalance,
+                                amountSpent        = homeUiState.amountSpent,
+                                monthlyBudget      = homeUiState.monthlyBudget,
+                                streakDays         = homeUiState.streakDays,
+                                isLoading          = homeUiState.isLoading,
+                                error              = homeUiState.error,
+                                actionError        = homeUiState.actionError,
+                                showNotificationNudge      = homeUiState.showNotificationNudge,
+                                hasEverAddedTask   = homeUiState.hasEverAddedTask,
+                                onDismissNotificationNudge = homeViewModel::dismissNotificationNudge,
+                                onRetry            = homeViewModel::loadData,
+                                onTaskComplete     = homeViewModel::completeTask,
+                                onTaskDelete       = homeViewModel::deleteTask,
+                                onActionErrorShown = homeViewModel::clearActionError,
+                            )
+                        }
 
-            composable(Screen.AnalyticsScreen.route) {
-                LaunchedEffect(Unit) {
-                    analyticsViewModel.loadAnalytics()
+                        1 -> {
+                            LaunchedEffect(Unit) {
+                                analyticsViewModel.loadAnalytics()
+                            }
+                            AnalyticsScreen(
+                                selectedRange  = analyticsUiState.selectedRange,
+                                totalEarned    = analyticsUiState.totalEarned,
+                                totalSpent     = analyticsUiState.totalSpent,
+                                completionRate = analyticsUiState.completionRate,
+                                streakDays     = analyticsUiState.streakDays,
+                                series         = analyticsUiState.series,
+                                taskBreakdown  = analyticsUiState.taskBreakdown,
+                                isEmptyState   = analyticsUiState.isEmptyState,
+                                isLoading      = analyticsUiState.isLoading,
+                                error          = analyticsUiState.error,
+                                onRangeSelect  = analyticsViewModel::selectRange,
+                                // loadAnalytics has a default parameter, and a bare method
+                                // reference doesn't apply defaults — needs a lambda to satisfy
+                                // the () -> Unit shape onRetry expects.
+                                onRetry        = { analyticsViewModel.loadAnalytics() },
+                            )
+                        }
+                    }
                 }
-                AnalyticsScreen(
-                    selectedRange  = analyticsUiState.selectedRange,
-                    totalEarned    = analyticsUiState.totalEarned,
-                    totalSpent     = analyticsUiState.totalSpent,
-                    completionRate = analyticsUiState.completionRate,
-                    streakDays     = analyticsUiState.streakDays,
-                    series         = analyticsUiState.series,
-                    taskBreakdown  = analyticsUiState.taskBreakdown,
-                    isEmptyState   = analyticsUiState.isEmptyState,
-                    isLoading      = analyticsUiState.isLoading,
-                    error          = analyticsUiState.error,
-                    onRangeSelect  = analyticsViewModel::selectRange,
-                    // loadAnalytics has a default parameter, and a bare method
-                    // reference doesn't apply defaults — needs a lambda to satisfy
-                    // the () -> Unit shape onRetry expects.
-                    onRetry        = { analyticsViewModel.loadAnalytics() },
-                )
             }
 
             composable(Screen.QrScannerScreen.route) {

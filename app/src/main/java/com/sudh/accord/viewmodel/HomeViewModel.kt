@@ -96,7 +96,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                             tasks         = tasksResult.getOrDefault(emptyList()).map { it.toTask() },
                             walletBalance = balanceResult.getOrDefault(0.0),
                             isLoading     = false,
-                            error         = null
+                            error         = null,
+                            hasEverAddedTask = taskRepository.hasEverAddedTask()
                         )
                     }
                 }
@@ -175,7 +176,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             taskRepository.createTask("Bearer $token", request)
                 .onSuccess { dto ->
                     _uiState.update { current ->
-                        current.copy(tasks = current.tasks + dto.toTask())
+                        current.copy(
+                            tasks = current.tasks + dto.toTask(),
+                            // The very first task: flips the empty state
+                            // (were it to show again) from "No tasks yet"
+                            // to "All caught up" without waiting on a
+                            // reload. Cheap to set unconditionally on every
+                            // add — already true after the first task.
+                            hasEverAddedTask = true
+                        )
                     }
                     // Reminders only make sense for one-off tasks with a due date.
                     if (dto.type == "ONE_OFF" && dto.dueDate != null) {

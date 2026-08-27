@@ -11,6 +11,10 @@ sealed class Screen(val route: String) {
     object ResetPasswordScreen   : Screen("reset_password_screen")
     object OnboardingScreen      : Screen("onboarding_screen")
     object HomeScreen        : Screen("home_screen")
+    // No longer a NavHost destination on its own — Analytics is now the
+    // second page of the HorizontalPager hosted at HomeScreen.route (see
+    // NavGraph). Kept only as a route-string identity in case a future
+    // deep link needs to name it directly.
     object AnalyticsScreen   : Screen("analytics_screen")
     object QrScannerScreen   : Screen("qr_scanner_screen")
 

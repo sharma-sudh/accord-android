@@ -29,10 +29,15 @@ class TaskRepository(context: Context) {
     private val appContext = context.applicationContext
     private val api = RetrofitClient.api
     private val taskDao = AccordDatabase.getInstance(appContext).taskDao()
+    private val taskPrefs = TaskPrefs(appContext)
     private val gson = Gson()
 
     fun observeTasks(): Flow<List<TaskDto>> =
         taskDao.observeTasks().map { list -> list.map { it.toDto() } }
+
+    // Backs the "No tasks yet" vs "All caught up" split in HomeScreen's
+    // empty state — see TaskPrefs.
+    fun hasEverAddedTask(): Boolean = taskPrefs.hasEverAddedTask
 
     // Tasks SyncWorker flagged as CONFLICT — hidden from observeTasks() (see
     // TaskDao) until resolved. Pair with getConflictServerSnapshot(id) for
@@ -102,6 +107,7 @@ class TaskRepository(context: Context) {
             syncState = SyncState.PENDING_CREATE
         )
         taskDao.upsert(entity)
+        taskPrefs.hasEverAddedTask = true
         SyncScheduler.enqueueNow(appContext)
         return Result.success(entity.toDto())
     }
