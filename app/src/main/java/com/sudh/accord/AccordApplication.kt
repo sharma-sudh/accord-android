@@ -15,6 +15,7 @@ import com.sudh.accord.repository.PaymentRepository
 import com.sudh.accord.repository.StreakRepository
 import com.sudh.accord.repository.TaskRepository
 import com.sudh.accord.repository.UserRepository
+import com.sudh.accord.sync.SyncScheduler
 import com.sudh.accord.ui.theme.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,11 +56,11 @@ class AccordApplication : Application() {
         super.onCreate()
         tokenManager = TokenManager(this)
         RetrofitClient.init(tokenManager) // must run before any repository touches RetrofitClient.api
-        taskRepository = TaskRepository()
+        taskRepository = TaskRepository(this) // Room-backed, local-first — see TaskRepository
         authRepository = AuthRepository()
         userRepository  = UserRepository()
         analyticsRepository = AnalyticsRepository()
-        paymentRepository = PaymentRepository()
+        paymentRepository = PaymentRepository(this) // Room-backed, local-first — see PaymentRepository
         streakRepository = StreakRepository()
         narrativeRepository = NarrativeRepository()
         notificationPrefs = NotificationPrefs(this)
@@ -68,5 +69,7 @@ class AccordApplication : Application() {
         NotificationChannels.ensureCreated(this)
         WalletPressureScheduler.ensureScheduled(this)
         NarrativeScheduler.ensureScheduled(this)
+        SyncScheduler.ensurePeriodicSync(this) // safety-net reconciliation of anything left pending
+        SyncScheduler.enqueueNow(this) // push anything queued up since the last time the app was online
     }
 }
