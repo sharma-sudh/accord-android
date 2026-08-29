@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import com.sudh.accord.auth.SessionManager
 import com.sudh.accord.screens.*
 import com.sudh.accord.components.*
 import com.sudh.accord.viewmodel.AnalyticsViewModel
+import com.sudh.accord.viewmodel.ConflictViewModel
 import com.sudh.accord.viewmodel.ForgotPasswordViewModel
 import com.sudh.accord.viewmodel.HomeViewModel
 import com.sudh.accord.viewmodel.OnboardingViewModel
@@ -49,6 +51,10 @@ fun NavGraph() {
     val analyticsViewModel: AnalyticsViewModel     = viewModel()
     val onboardingViewModel: OnboardingViewModel   = viewModel()
     val forgotPasswordViewModel: ForgotPasswordViewModel = viewModel()
+    // Hoisted here (not inside ConflictResolutionSheet) so the badge below
+    // and the sheet itself read the same instance — the badge needs the
+    // conflict count even while the sheet is closed.
+    val conflictViewModel: ConflictViewModel        = viewModel()
     // Same activity-scoped instance MainActivity's setContent root reads —
     // see the comment there — so toggling here updates the actual applied
     // color scheme, not a second disconnected copy of it.
@@ -56,12 +62,14 @@ fun NavGraph() {
 
     val homeUiState      by homeViewModel.uiState.collectAsStateWithLifecycle()
     val analyticsUiState by analyticsViewModel.uiState.collectAsStateWithLifecycle()
+    val conflictUiState  by conflictViewModel.uiState.collectAsStateWithLifecycle()
     val darkThemeOverride by themeViewModel.darkThemeOverride.collectAsStateWithLifecycle()
     val isDarkTheme = darkThemeOverride ?: isSystemInDarkTheme()
 
     var isFabExpanded      by remember { mutableStateOf(false) }
     var isAddTaskSheetOpen by remember { mutableStateOf(false) }
     var isSettingsSheetOpen by remember { mutableStateOf(false) }
+    var isConflictSheetOpen by remember { mutableStateOf(false) }
 
     // Backs the swipeable Home/Analytics pager (see the Screen.HomeScreen.route
     // composable below). Hoisted here, not inside that composable, so the
@@ -105,6 +113,23 @@ fun NavGraph() {
                         }
                     },
                     actions = {
+                        // Conflicts are excluded from every normal task read
+                        // (see TaskDao) so, without this, a user would have
+                        // no way to know one exists. Only rendered once
+                        // there's something to resolve.
+                        val conflictCount = conflictUiState.conflicts.size
+                        if (conflictCount > 0) {
+                            IconButton(onClick = { isConflictSheetOpen = true }) {
+                                BadgedBox(
+                                    badge = { Badge { Text(conflictCount.toString()) } }
+                                ) {
+                                    Icon(
+                                        Icons.Default.SyncProblem,
+                                        contentDescription = "$conflictCount task${if (conflictCount == 1) "" else "s"} need attention"
+                                    )
+                                }
+                            }
+                        }
                         IconButton(onClick = { isSettingsSheetOpen = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
@@ -372,6 +397,13 @@ fun NavGraph() {
                     homeViewModel.addTask(newTask)
                     isAddTaskSheetOpen = false
                 }
+            )
+        }
+
+        if (isConflictSheetOpen) {
+            ConflictResolutionSheet(
+                onDismiss  = { isConflictSheetOpen = false },
+                viewModel  = conflictViewModel
             )
         }
 
